@@ -255,6 +255,7 @@ export default function App() {
             toolbarEnabled
             zoomEnabled
             scrollEnabled
+            nestedScrollEnabled
           >
             {position && <Marker
               coordinate={position}
