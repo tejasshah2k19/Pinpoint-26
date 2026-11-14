@@ -324,9 +324,13 @@ function chooseAdminPlaceSuggestion(index) {
 }
 
 async function renderLocations() {
-  const results = await Promise.all([api("/admin/locations?limit=100"), api("/admin/categories")]);
+  const results = await Promise.all([api("/admin/locations?limit=100"), api("/admin/categories"), api("/admin/users?limit=100")]);
   const places = results[0].data || [];
   const categoryRecords = results[1].data || [];
+  const users = results[2].data || [];
+  const ownerOptions = users.map(function (user) {
+    return '<option value="' + escapeHtml(user._id) + '">' + escapeHtml((user.name || user.email) + " · " + user.email) + '</option>';
+  }).join("");
   const categoryNames = [];
   const seenNames = new Set();
   categoryRecords.concat(places.map(function (p) { return { name: p.category || "Other" }; })).forEach(function (item) {
@@ -356,6 +360,7 @@ async function renderLocations() {
     '<label class="span-2">Place name<input id="locationTitle" name="title" required maxlength="120" placeholder="e.g. Sabarmati Riverfront"></label>' +
     '<label>Category<select name="category" id="locationCategorySelect" required>' + categoryOptions("Other") + '</select></label>' +
     '<div class="category-add-wrap"><button type="button" class="text-action" data-action="show-add-location-category">＋ Add custom category</button><div id="locationCustomCategoryBox" class="hidden custom-category-inline"><input id="newLocationCategory" maxlength="50" placeholder="New category name"><button type="button" class="btn secondary" data-action="save-location-category">Save category</button></div></div>' +
+    '<label class="span-2">Location owner<select name="userId" id="locationOwnerSelect" required>' + ownerOptions + '</select><small class="field-hint">Choose which user owns this location. Admins can change the owner later.</small></label>' +
     '<label class="span-2">Full address<input id="locationAddress" name="address" maxlength="300" placeholder="Street, area, city, state, PIN code"></label>' +
     '<div class="span-2 map-picker-heading"><div><b>Pinpoint the exact location</b><small>Click the map to drop a pin, or drag the marker to fine-tune it.</small></div><button type="button" class="text-action" data-action="reset-admin-map">Reset map</button></div>' +
     '<div class="span-2"><div id="adminLocationMap" class="admin-location-map"></div><p id="locationMapStatus" class="map-status">No coordinates selected. Choose a search suggestion or click the map.</p></div>' +
@@ -370,7 +375,9 @@ async function renderLocations() {
       const owner = p.user && (p.user.name || p.user.email) || "Unknown";
       return '<tr><td><b>' + escapeHtml(p.title) + '</b><small>' + escapeHtml(p.address || "—") + '</small></td>' +
       '<td><select class="compact-select" data-location-category="' + escapeHtml(p._id) + '">' + categoryOptions(p.category || "Other") + '</select></td>' +
-      '<td>' + escapeHtml(owner) + '</td><td><span class="status ' + (p.isPublic ? "public" : "private") + '">' + (p.isPublic ? "Public" : "Private") + '</span></td><td>' + dateText(p.createdAt) + '</td>' +
+      '<td><select class="compact-select" data-location-owner="' + escapeHtml(p._id) + '">' + users.map(function (user) {
+        return '<option value="' + escapeHtml(user._id) + '"' + (p.user && String(p.user._id) === String(user._id) ? " selected" : "") + '>' + escapeHtml(user.name || user.email) + '</option>';
+      }).join("") + '</select><small>' + escapeHtml(owner) + '</small></td><td><span class="status ' + (p.isPublic ? "public" : "private") + '">' + (p.isPublic ? "Public" : "Private") + '</span></td><td>' + dateText(p.createdAt) + '</td>' +
       '<td class="actions"><button class="text-action" data-action="edit-location" data-id="' + escapeHtml(p._id) + '" data-title="' + escapeHtml(p.title) + '" data-address="' + escapeHtml(p.address || "") + '" data-notes="' + escapeHtml(p.notes || "") + '">Edit</button><button class="text-action" data-action="toggle-place" data-id="' + escapeHtml(p._id) + '" data-public="' + (!!p.isPublic) + '">' + (p.isPublic ? "Make private" : "Publish") + '</button><button class="text-action danger-text" data-action="delete-place" data-id="' + escapeHtml(p._id) + '">Delete</button></td></tr>';
     }).join("") : '<tr><td colspan="6" class="empty-cell">No places have been saved yet.</td></tr>') +
     '</tbody></table></div>';
@@ -540,6 +547,19 @@ content.addEventListener("input", function (event) {
   }
 });
 content.addEventListener("change", async function (event) {
+  const ownerSelect = event.target.closest("[data-location-owner]");
+  if (ownerSelect) {
+    try {
+      ownerSelect.disabled = true;
+      await api("/admin/locations/" + ownerSelect.dataset.locationOwner, { method: "PUT", body: JSON.stringify({ userId: ownerSelect.value }) });
+      showNotice("Location owner changed successfully.");
+      await renderLocations();
+    } catch (err) {
+      showNotice(err.message, true);
+      ownerSelect.disabled = false;
+    }
+    return;
+  }
   const categorySelect = event.target.closest("[data-location-category]");
   if (categorySelect) {
     try {
