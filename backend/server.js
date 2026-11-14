@@ -15,9 +15,10 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "https://unpkg.com"],
+      workerSrc: ["'self'", "blob:"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com"],
       imgSrc: ["'self'", "data:", "blob:", "https://*.tile.openstreetmap.org", "https://unpkg.com"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "https://tiles.openfreemap.org"],
       fontSrc: ["'self'", "data:"]
     }
   }
