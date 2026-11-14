@@ -51,7 +51,11 @@ router.get("/nearby", async (req, res, next) => {
   try {
     const longitude = Number(req.query.longitude);
     const latitude = Number(req.query.latitude);
-    const maxDistance = Math.min(Number(req.query.maxDistance) || 5000, 50000);
+    const requestedDistance = req.query.maxDistance === undefined ? 5000 : Number(req.query.maxDistance);
+    if (!Number.isFinite(requestedDistance) || requestedDistance < 1 || requestedDistance > 1000000) {
+      return res.status(400).json({ success: false, message: "maxDistance must be between 1 and 1,000,000 metres" });
+    }
+    const maxDistance = requestedDistance;
     if (!Number.isFinite(longitude) || !Number.isFinite(latitude) ||
         longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
       return res.status(400).json({ success: false, message: "Valid longitude and latitude are required" });
