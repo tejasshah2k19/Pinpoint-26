@@ -64,7 +64,7 @@ export default function App() {
     const active = t || token;
     if (!active) return;
     setLoading(true);
-    try { const result = await api.getLocations(active); setLocations(result.data || []); }
+    try { const result = await api.getLocations(active); setLocations(result.locations || result.data || []); }
     catch(e) { Alert.alert("Could not load places",e.message); }
     finally { setLoading(false); }
   }
