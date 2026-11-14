@@ -5,6 +5,8 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const path = require("path");
+const User = require("./models/User");
 
 const app = express();
 
@@ -27,6 +29,11 @@ app.get("/", (req, res) => {
   res.json({ success: true, message: "Pinpoint API is running", version: "1.0.0" });
 });
 
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin.html"));
+});
+app.use("/admin-assets", express.static(path.join(__dirname, "public"), { index: false }));
+
 app.get("/api/v1/health", (req, res) => {
   res.json({
     success: true,
@@ -39,6 +46,7 @@ app.use("/api/v1/auth", require("./routes/auth"));
 app.use("/api/v1/locations", require("./routes/locations"));
 app.use("/api/v1/categories", require("./routes/categories"));
 app.use("/api/v1/offers", require("./routes/offers"));
+app.use("/api/v1/admin", require("./routes/admin"));
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
@@ -67,6 +75,13 @@ async function startServer() {
 
     await mongoose.connect(process.env.MONGODB_URI);
     console.log("MongoDB connected");
+
+    const adminEmail = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+    if (adminEmail) {
+      const result = await User.updateOne({ email: adminEmail }, { $set: { role: "admin" } });
+      if (result.matchedCount) console.log("Configured administrator account is enabled");
+      else console.log("ADMIN_EMAIL is set; account will be promoted after it is registered");
+    }
 
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Pinpoint API listening on port ${PORT}`);
