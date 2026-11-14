@@ -24,11 +24,7 @@ app.use(rateLimit({
 }));
 
 app.get("/", (req, res) => {
-  res.json({
-    success: true,
-    message: "Pinpoint API is running",
-    version: "1.0.0"
-  });
+  res.json({ success: true, message: "Pinpoint API is running", version: "1.0.0" });
 });
 
 app.get("/api/v1/health", (req, res) => {
@@ -39,11 +35,11 @@ app.get("/api/v1/health", (req, res) => {
   });
 });
 
+app.use("/api/v1/auth", require("./routes/auth"));
+app.use("/api/v1/locations", require("./routes/locations"));
+
 app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Route not found"
-  });
+  res.status(404).json({ success: false, message: "Route not found" });
 });
 
 app.use((err, req, res, next) => {
@@ -60,12 +56,15 @@ const PORT = process.env.PORT || 5000;
 
 async function startServer() {
   try {
-    if (process.env.MONGODB_URI) {
-      await mongoose.connect(process.env.MONGODB_URI);
-      console.log("MongoDB connected");
-    } else {
-      console.warn("MONGODB_URI is not set. Starting without database connection.");
+    if (!process.env.MONGODB_URI) {
+      throw new Error("MONGODB_URI is required. Configure it in the hosting environment.");
     }
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+      throw new Error("JWT_SECRET must be configured with at least 32 characters.");
+    }
+
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log("MongoDB connected");
 
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Pinpoint API listening on port ${PORT}`);
