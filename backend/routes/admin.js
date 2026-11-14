@@ -14,9 +14,7 @@ function validId(id) {
   return mongoose.isValidObjectId(id);
 }
 function escapeRegex(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\function validId(id) {
-  return mongoose.isValidObjectId(id);
-}");
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 function pageParams(query) {
   const page = Math.max(1, Number.parseInt(query.page, 10) || 1);
