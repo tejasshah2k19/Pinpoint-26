@@ -148,7 +148,7 @@ export default function App() {
     setPosition(existingPosition); setTab("Capture");
   }
   async function addCustomCategory() {
-    const name = customCategoryName.trim().replace(/\\s+/g, " ");
+    const name = customCategoryName.trim().replace(/\s+/g, " ");
     if (!name) return Alert.alert("Enter a category","Type a category name first.");
     if (name.length > 50) return Alert.alert("Category too long","Use 50 characters or fewer.");
     setBusy(true);
