@@ -13,6 +13,11 @@ router.use(authenticate, requireAdmin);
 function validId(id) {
   return mongoose.isValidObjectId(id);
 }
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\function validId(id) {
+  return mongoose.isValidObjectId(id);
+}");
+}
 function pageParams(query) {
   const page = Math.max(1, Number.parseInt(query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, Number.parseInt(query.limit, 10) || 50));
@@ -160,15 +165,24 @@ router.delete("/locations/:id", async (req, res, next) => {
 
 router.get("/categories", async (req, res, next) => {
   try {
-    const data = await Category.find().populate("user", "name email").sort({ name: 1 }).limit(500);
+    const records = await Category.find().populate("user", "name email").sort({ name: 1 }).limit(1000);
+    const seen = new Set();
+    const data = records.filter((item) => {
+      const key = String(item.name || "").trim().toLocaleLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
     res.json({ success: true, data });
   } catch (error) { next(error); }
 });
 
 router.post("/categories", async (req, res, next) => {
   try {
-    const name = String(req.body.name || "").trim();
+    const name = String(req.body.name || "").trim().replace(/\s+/g, " ");
     if (!name || name.length > 50) return res.status(400).json({ success: false, message: "Category name is required (maximum 50 characters)" });
+    const existing = await Category.findOne({ name: new RegExp("^" + escapeRegex(name) + "$", "i") });
+    if (existing) return res.json({ success: true, data: existing, alreadyExists: true });
     const category = await Category.create({ user: req.userId, name, color: req.body.color, icon: req.body.icon });
     res.status(201).json({ success: true, data: category });
   } catch (error) {
@@ -182,8 +196,12 @@ router.put("/categories/:id", async (req, res, next) => {
     if (!validId(req.params.id)) return res.status(400).json({ success: false, message: "Invalid category ID" });
     const updates = {};
     for (const field of ["name", "color", "icon"]) if (req.body[field] !== undefined) updates[field] = req.body[field];
-    if (updates.name !== undefined) updates.name = String(updates.name).trim();
+    if (updates.name !== undefined) updates.name = String(updates.name).trim().replace(/\s+/g, " ");
     if (updates.name !== undefined && (!updates.name || updates.name.length > 50)) return res.status(400).json({ success: false, message: "Category name must be 1–50 characters" });
+    if (updates.name !== undefined) {
+      const duplicate = await Category.findOne({ _id: { $ne: req.params.id }, name: new RegExp("^" + escapeRegex(updates.name) + "$", "i") });
+      if (duplicate) return res.status(409).json({ success: false, message: "Another category already uses this name" });
+    }
     const category = await Category.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true, runValidators: true });
     if (!category) return res.status(404).json({ success: false, message: "Category not found" });
     res.json({ success: true, data: category });
