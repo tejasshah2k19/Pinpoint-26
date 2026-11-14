@@ -141,7 +141,8 @@ export default function App() {
     setBusy(true);
     try {
       const result = authMode === "login" ? await api.login({email:auth.email.trim(),password:auth.password}) : await api.register({name:auth.name.trim(),email:auth.email.trim(),password:auth.password});
-      await AsyncStorage.setItem("pinpoint_session_token", result.token);\n      setToken(result.token); setUser(result.user); setTab("Home");
+      await AsyncStorage.setItem("pinpoint_session_token", result.token);
+      setToken(result.token); setUser(result.user); setTab("Home");
     } catch(e) { Alert.alert("Authentication failed",e.message); }
     finally { setBusy(false); }
   }
@@ -241,13 +242,16 @@ export default function App() {
     return matchCat && matchText;
   }),[locations,category,search]);
 
-  if(sessionChecking) return <SafeAreaView style={[s.safe,{alignItems:"center",justifyContent:"center"}]}><ActivityIndicator size="large" color={C.coral}/><Text style={{color:C.muted,marginTop:12,fontSize:12}}>Restoring your session…</Text></SafeAreaView>;\n\n  if(!token) return <SafeAreaView style={s.safe}>
+  if(sessionChecking) return <SafeAreaView style={[s.safe,{alignItems:"center",justifyContent:"center"}]}><ActivityIndicator size="large" color={C.coral}/><Text style={{color:C.muted,marginTop:12,fontSize:12}}>Restoring your session…</Text></SafeAreaView>;
+
+  if(!token) return <SafeAreaView style={s.safe}>
     <ExpoStatusBar style="dark" />
     <KeyboardAvoidingView style={s.authScreen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={s.authContent} keyboardShouldPersistTaps="handled">
         <View style={s.brandMark}><Text style={s.brandMarkText}>➤</Text></View>
         <Text style={s.brandWord}>PINPOINT</Text>
-        <Text style={s.authTitle}>Your places,{"\n"}remembered.</Text>
+        <Text style={s.authTitle}>Your places,{"
+"}remembered.</Text>
         <Text style={s.authSub}>Capture the spots worth coming back to, with exact GPS coordinates.</Text>
         {authMode === "register" && <View><Text style={s.label}>Your name</Text><Field placeholder="Your name" value={auth.name} onChangeText={v=>setAuth({...auth,name:v})}/></View>}
         <Text style={s.label}>Email address</Text>
