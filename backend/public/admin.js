@@ -230,10 +230,20 @@ content.addEventListener("click", async function (event) {
       const name = input.value.trim().replace(/\s+/g, " ");
       if (!name || name.length > 50) return showNotice("Enter a category name (maximum 50 characters).", true);
       const result = await api("/admin/categories", { method: "POST", body: JSON.stringify({ name: name }) });
-      showNotice(result.alreadyExists ? "That category already exists. Select it from the dropdown." : "Category added to the shared dropdown.");
-      await renderLocations();
       const select = document.getElementById("locationCategorySelect");
-      if (select && result.data && result.data.name) select.value = result.data.name;
+      if (select && result.data && result.data.name) {
+        let option = Array.from(select.options).find(function (item) { return item.value.toLocaleLowerCase() === result.data.name.toLocaleLowerCase(); });
+        if (!option) {
+          option = document.createElement("option");
+          option.value = result.data.name;
+          option.textContent = result.data.name;
+          select.appendChild(option);
+        }
+        select.value = result.data.name;
+      }
+      input.value = "";
+      document.getElementById("locationCustomCategoryBox").classList.add("hidden");
+      showNotice(result.alreadyExists ? "Existing category selected. No duplicate was created." : "Category added to the shared dropdown.");
       return;
     }
     if (button.dataset.action === "toggle-user") {
