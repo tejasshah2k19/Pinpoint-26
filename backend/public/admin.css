@@ -33,3 +33,89 @@
 .google-import-row input{flex:1;min-width:0}
 .google-import-row .btn{flex:none;white-space:nowrap}
 @media(max-width:600px){.google-import-row{align-items:stretch;flex-direction:column}.google-import-row .btn{width:100%}}
+
+
+/* Mobile-first refinements for the complete admin console */
+html{ -webkit-text-size-adjust:100%; scroll-behavior:smooth }
+body{ overflow-x:hidden }
+input,select,textarea,button{ touch-action:manipulation }
+button,.nav-item,.text-action,.logout-button{ min-height:40px }
+.table-wrap{ max-width:100%; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain }
+.table-wrap table{ min-width:680px }
+.table-wrap:focus-within{ outline:2px solid #d9785540; outline-offset:2px }
+.form-grid>* , .inline-form>*{ min-width:0 }
+.form-grid input,.form-grid select,.form-grid textarea,.inline-form input{ min-height:44px }
+.admin-location-map{ touch-action:pan-x pan-y }
+@media(max-width:700px){
+  .app-shell{width:100%;overflow-x:hidden}
+  .sidebar{position:sticky;top:0;padding:10px 10px 9px;box-shadow:0 5px 16px #20211f12}
+  .side-brand{padding:0 4px 9px}
+  .sidebar nav{margin:0 -2px;padding:0 2px 3px;scrollbar-width:thin;scroll-snap-type:x proximity}
+  .nav-item{flex:0 0 auto;min-height:42px;scroll-snap-align:start}
+  .main-area{width:100%;min-width:0}
+  .topbar{height:auto;min-height:78px;gap:10px;padding:14px 15px}
+  .topbar>div{min-width:0}
+  .topbar .eyebrow{font-size:8px}
+  .topbar h1{font-size:20px;overflow-wrap:anywhere}
+  .open-app{flex:none;padding:9px 10px;font-size:10px}
+  .content{width:100%;padding:17px 12px 26px}
+  .notice{margin:10px 12px 0;overflow-wrap:anywhere}
+  .section-intro,.form-heading,.table-heading{align-items:flex-start;flex-wrap:wrap;gap:9px}
+  .section-intro>div,.form-heading>div{min-width:0}
+  .section-intro h2{font-size:17px}
+  .count-pill{white-space:normal}
+  .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stat-card{min-width:0;padding:13px}
+  .stat-top{font-size:10px;gap:5px}
+  .stat-card strong{font-size:24px;overflow-wrap:anywhere}
+  .intro-panel{gap:10px;padding:17px}
+  .intro-panel>div:first-child{min-width:0}
+  .intro-symbol{font-size:38px}
+  .panel{padding:15px;border-radius:13px}
+  .form-grid,.inline-form{grid-template-columns:minmax(0,1fr);gap:0}
+  .form-grid .span-2{grid-column:1}
+  .form-grid label,.inline-form label{min-width:0}
+  .category-add-wrap{width:100%;padding-bottom:12px}
+  .custom-category-inline{flex-wrap:wrap}
+  .custom-category-inline input{min-width:0}
+  .form-actions{justify-content:stretch}
+  .form-actions .btn,.inline-form .btn{width:100%;min-height:44px}
+  .inline-form .btn{margin:0 0 12px}
+  .google-import-row{width:100%}
+  .google-import-row input{width:100%;min-height:44px}
+  .admin-location-map{height: min(62vh,360px);min-height:260px}
+  .map-picker-heading{flex-wrap:wrap}
+  .map-picker-heading>div{min-width:0}
+  .place-suggestions{max-height: min(42vh,290px)}
+  .table-wrap{margin-left:0;margin-right:0;border-radius:11px}
+  .table-wrap table{min-width:680px}
+  .table-wrap th,.table-wrap td{padding:11px 12px}
+  .compact-select{max-width:180px;min-height:38px}
+  .actions{white-space:normal;min-width:130px}
+  .text-action{min-height:36px;padding:7px}
+  .main-area footer{padding:13px 12px}
+  .login-wrap{padding:16px;min-height:100svh}
+  .login-card{width:100%;max-width:430px;padding:24px 20px;border-radius:18px}
+  .login-card>.eyebrow{margin-top:28px}
+  .login-card h1{font-size:28px}
+  .login-card input{min-height:46px}
+  .login-card .btn{min-height:46px}
+}
+@media(max-width:380px){
+  .content{padding-left:9px;padding-right:9px}
+  .topbar{padding-left:11px;padding-right:11px}
+  .topbar h1{font-size:18px}
+  .open-app{font-size:9px;padding:8px}
+  .nav-item{font-size:9px;padding:8px 9px}
+  .nav-item span{display:none}
+  .stats-grid{gap:7px}
+  .stat-card{padding:11px}
+  .stat-top{font-size:9px}
+  .stat-top i{width:26px;height:26px}
+  .panel{padding:12px}
+  .login-card{padding:21px 16px}
+}
+@media(hover:none){
+  .nav-item:hover,.quick-card:hover,.suggestion-option:hover{background:initial}
+  .nav-item.active{background:#363731}
+}
