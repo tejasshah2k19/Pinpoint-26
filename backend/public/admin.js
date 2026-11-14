@@ -201,9 +201,9 @@ function initAdminLocationMap() {
     adminLocationMarker = null;
   }
   adminLocationMap = window.L.map(element, { scrollWheelZoom: true }).setView([23.0225, 72.5714], 12);
-  window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>'
+  window.L.maplibreGL({
+    style: "https://tiles.openfreemap.org/styles/liberty",
+    attributionControl: true
   }).addTo(adminLocationMap);
   adminLocationMap.on("click", function (event) {
     updateAdminMapPoint(event.latlng.lat, event.latlng.lng, 16);
