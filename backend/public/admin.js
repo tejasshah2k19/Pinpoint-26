@@ -188,6 +188,56 @@ async function reverseAdminMapAddress(latitude, longitude) {
     // The selected pin and coordinates remain usable even if reverse lookup is unavailable.
   }
 }
+function parseGoogleMapsLocationLink(rawLink) {
+  const raw = String(rawLink || "").trim().replace(/&amp;/g, "&");
+  if (!raw) throw new Error("Paste a Google Maps link first.");
+  let url;
+  try { url = new URL(raw); } catch (_) { throw new Error("That does not look like a valid Google Maps URL."); }
+  if (!/(^|\.)google\.[a-z.]+$/i.test(url.hostname) && !/(^|\.)maps\.app\.goo\.gl$/i.test(url.hostname)) {
+    throw new Error("Please paste a link from Google Maps.");
+  }
+  let latitude = null, longitude = null;
+  const placeLat = url.href.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+  const viewport = url.pathname.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)(?:,|$)/);
+  const coords = placeLat || viewport;
+  if (coords) {
+    latitude = Number(coords[1]);
+    longitude = Number(coords[2]);
+  }
+  let placeSegment = "";
+  const placeMatch = url.pathname.match(/\/place\/([^/]+)/i);
+  if (placeMatch) {
+    try { placeSegment = decodeURIComponent(placeMatch[1].replace(/\+/g, " ")); }
+    catch (_) { placeSegment = placeMatch[1].replace(/\+/g, " "); }
+  }
+  placeSegment = placeSegment.replace(/\s+/g, " ").trim();
+  const title = placeSegment ? placeSegment.split(",")[0].trim() : "";
+  const address = placeSegment || "";
+  if (latitude === null || longitude === null || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+    throw new Error("This Google Maps link does not contain extractable coordinates. Open the place in Google Maps and copy its full browser URL, not the short share link.");
+  }
+  if (!title && !address) throw new Error("The link contains coordinates but no place name. You can enter the name manually.");
+  return { title: title, address: address, latitude: latitude, longitude: longitude };
+}
+function importGoogleMapsLink() {
+  try {
+    const linkInput = document.getElementById("googleMapsImportLink");
+    const extracted = parseGoogleMapsLocationLink(linkInput && linkInput.value);
+    const title = document.getElementById("locationTitle");
+    const address = document.getElementById("locationAddress");
+    const search = document.getElementById("placeSearchInput");
+    if (title && extracted.title) title.value = extracted.title;
+    if (address && extracted.address) address.value = extracted.address;
+    if (search) search.value = extracted.title || extracted.address;
+    updateAdminMapPoint(extracted.latitude, extracted.longitude, 17);
+    const status = document.getElementById("locationMapStatus");
+    if (status) status.textContent = "Imported from Google Maps URL · " + extracted.latitude.toFixed(7) + ", " + extracted.longitude.toFixed(7) + " · Verify the pin before saving";
+    showNotice("Google Maps details extracted. Check the name, address and pin, then save the location.");
+  } catch (error) {
+    showNotice(error.message, true);
+  }
+}
+
 function initAdminLocationMap() {
   const element = document.getElementById("adminLocationMap");
   if (!element) return;
@@ -293,7 +343,10 @@ async function renderLocations() {
   }
   content.innerHTML =
     '<div class="section-intro"><div><h2>Location directory</h2><p>Add a useful public place or moderate saved locations from the community.</p></div><span class="count-pill">' + places.length + ' shown</span></div>' +
-    '<div class="panel form-panel"><div class="form-heading"><div><h3>Add a location</h3><p>Search for a place, choose a map point, or do both to verify the exact position.</p></div><span class="public-tag">PUBLIC PLACE</span></div>' +
+    '<div class="panel form-panel google-import-panel"><div class="form-heading"><div><h3>Import from Google Maps</h3><p>Paste the full Google Maps browser link to extract the place name, address and coordinates.</p></div><span class="import-tag">QUICK IMPORT</span></div>' +
+    '<div class="google-import-row"><input id="googleMapsImportLink" type="url" placeholder="Paste Google Maps link here…" autocomplete="off"><button type="button" class="btn secondary" data-action="import-google-maps">Import link</button></div>' +
+    '<small class="field-hint">Tip: Open the place in Google Maps and copy the full URL from your browser address bar. Short share links may not include coordinates.</small></div>' +
+    '<div class="panel form-panel"><div class="form-heading"><div><h3>Add a location</h3><p>Review imported details, adjust the map pin if needed, then save.</p></div><span class="public-tag">PUBLIC PLACE</span></div>' +
     '<form id="locationForm" class="form-grid">' +
     '<div class="span-2 place-search-field"><label>Search place name or address' +
     '<input id="placeSearchInput" type="search" autocomplete="off" placeholder="Start typing e.g. Sabarmati Riverfront, Ahmedabad"></label>' +
@@ -375,6 +428,10 @@ content.addEventListener("click", async function (event) {
   if (button.dataset.action === "retry") return window.location.reload();
   const id = button.dataset.id;
   try {
+    if (button.dataset.action === "import-google-maps") {
+      importGoogleMapsLink();
+      return;
+    }
     if (button.dataset.action === "reset-admin-map") {
       const title = document.getElementById("locationTitle");
       const search = document.getElementById("placeSearchInput");
