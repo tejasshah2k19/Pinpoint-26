@@ -5,6 +5,7 @@ import {
   TouchableOpacity, View
 } from "react-native";
 import * as Location from "expo-location";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import MapView, { Marker } from "react-native-maps";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { api } from "./src/api";
@@ -60,6 +61,7 @@ function PlaceCard(p) {
 
 export default function App() {
   const [token,setToken] = useState("");
+  const [sessionChecking,setSessionChecking] = useState(true);
   const [user,setUser] = useState(null);
   const [authMode,setAuthMode] = useState("login");
   const [auth,setAuth] = useState({name:"",email:"",password:""});
@@ -107,6 +109,30 @@ export default function App() {
     catch(e) { Alert.alert("Could not load places",e.message); }
     finally { setLoading(false); }
   }
+  useEffect(() => {
+    let mounted = true;
+    async function restoreSession() {
+      try {
+        const savedToken = await AsyncStorage.getItem("pinpoint_session_token");
+        if (!savedToken) return;
+        const result = await api.me(savedToken);
+        if (!mounted) return;
+        if (!result.user) throw new Error("Session is no longer valid");
+        setUser(result.user);
+        setToken(savedToken);
+      } catch (_) {
+        await AsyncStorage.multiRemove(["pinpoint_session_token"]);
+        if (mounted) {
+          setToken("");
+          setUser(null);
+        }
+      } finally {
+        if (mounted) setSessionChecking(false);
+      }
+    }
+    restoreSession();
+    return () => { mounted = false; };
+  }, []);
   useEffect(() => { if(token) { loadLocations(token); loadCategories(token); } },[token]);
 
   async function submitAuth() {
@@ -115,7 +141,7 @@ export default function App() {
     setBusy(true);
     try {
       const result = authMode === "login" ? await api.login({email:auth.email.trim(),password:auth.password}) : await api.register({name:auth.name.trim(),email:auth.email.trim(),password:auth.password});
-      setToken(result.token); setUser(result.user); setTab("Home");
+      await AsyncStorage.setItem("pinpoint_session_token", result.token);\n      setToken(result.token); setUser(result.user); setTab("Home");
     } catch(e) { Alert.alert("Authentication failed",e.message); }
     finally { setBusy(false); }
   }
@@ -215,7 +241,7 @@ export default function App() {
     return matchCat && matchText;
   }),[locations,category,search]);
 
-  if(!token) return <SafeAreaView style={s.safe}>
+  if(sessionChecking) return <SafeAreaView style={[s.safe,{alignItems:"center",justifyContent:"center"}]}><ActivityIndicator size="large" color={C.coral}/><Text style={{color:C.muted,marginTop:12,fontSize:12}}>Restoring your session…</Text></SafeAreaView>;\n\n  if(!token) return <SafeAreaView style={s.safe}>
     <ExpoStatusBar style="dark" />
     <KeyboardAvoidingView style={s.authScreen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={s.authContent} keyboardShouldPersistTaps="handled">
@@ -371,7 +397,7 @@ export default function App() {
     {tab === "Profile" && <View style={s.screen}><Text style={s.placesTitle}>Profile</Text><Text style={s.placesSub}>Your Pinpoint account and preferences.</Text>
       <View style={s.profileCard}><View style={s.avatar}><Text style={s.avatarText}>{firstName.charAt(0).toUpperCase()}</Text></View><Text style={s.profileName}>{user && user.name || "Pinpoint user"}</Text><Text style={s.profileEmail}>{user && user.email || ""}</Text></View>
       <View style={s.privacyCard}><Text style={s.privacyTitle}>Your places are private</Text><Text style={s.privacyBody}>Your saved locations stay connected to your account. You choose when to share them.</Text></View>
-      <TouchableOpacity style={s.logout} onPress={()=>{setToken("");setUser(null);setLocations([]);setTab("Home");}}><Text style={s.logoutText}>Sign out</Text></TouchableOpacity>
+      <TouchableOpacity style={s.logout} onPress={async()=>{await AsyncStorage.multiRemove(["pinpoint_session_token"]);setToken("");setUser(null);setLocations([]);setNearbyLocations([]);setTab("Home");setAuth({name:"",email:"",password:""});}}><Text style={s.logoutText}>Sign out</Text></TouchableOpacity>
     </View>}
     <View style={s.tabs}>
       <TabButton icon="⌂" label="Home" active={tab==="Home"} onPress={()=>setTab("Home")}/>
