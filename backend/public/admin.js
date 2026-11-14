@@ -178,10 +178,7 @@ function updateAdminMapPoint(latitude, longitude, zoom) {
 }
 async function reverseAdminMapAddress(latitude, longitude) {
   try {
-    const url = "https://photon.komoot.io/reverse?lat=" + encodeURIComponent(latitude) + "&lon=" + encodeURIComponent(longitude) + "&lang=en";
-    const response = await fetch(url);
-    if (!response.ok) return;
-    const payload = await response.json();
+    const payload = await api("/admin/reverse-geocode?lat=" + encodeURIComponent(latitude) + "&lon=" + encodeURIComponent(longitude));
     const feature = payload.features && payload.features[0];
     if (!feature) return;
     const address = photonAddress(feature.properties) || feature.properties.name || "";
@@ -235,10 +232,7 @@ function searchAdminPlaceNames(query) {
       if (wait) await new Promise(function (resolve) { window.setTimeout(resolve, wait); });
       if (controller.signal.aborted) return;
       lastPhotonRequestAt = Date.now();
-      const url = "https://photon.komoot.io/api/?q=" + encodeURIComponent(query.trim()) + "&limit=6&lang=en";
-      const response = await fetch(url, { signal: controller.signal });
-      if (!response.ok) throw new Error("Place search is temporarily unavailable");
-      const payload = await response.json();
+      const payload = await api("/admin/place-search?q=" + encodeURIComponent(query.trim()));
       placeSuggestions = (payload.features || []).filter(function (feature) {
         return feature.geometry && Array.isArray(feature.geometry.coordinates) && feature.geometry.coordinates.length === 2;
       });
