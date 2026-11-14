@@ -95,7 +95,7 @@ async function navigate(page) {
     if (page === "categories") await renderCategories();
     if (page === "offers") await renderOffers();
   } catch (err) {
-    content.innerHTML = '<div class="empty-state"><b>Could not load this section</b><p>' + escapeHtml(err.message) + '</p><button class="btn secondary" onclick="window.location.reload()">Retry</button></div>';
+    content.innerHTML = '<div class="empty-state"><b>Could not load this section</b><p>' + escapeHtml(err.message) + '</p><button class="btn secondary" data-action="retry">Retry</button></div>';
   }
 }
 function statCard(label, value, hint, icon) {
@@ -199,6 +199,7 @@ content.addEventListener("click", async function (event) {
   if (quick) return navigate("locations");
   const button = event.target.closest("[data-action]");
   if (!button) return;
+  if (button.dataset.action === "retry") return window.location.reload();
   const id = button.dataset.id;
   try {
     if (button.dataset.action === "toggle-user") {
