@@ -326,10 +326,10 @@ content.addEventListener("submit", async function (event) {
       await renderLocations();
     }
     if (form.id === "categoryForm") {
-      await api("/admin/categories", { method: "POST", body: JSON.stringify({
+      const categoryResult = await api("/admin/categories", { method: "POST", body: JSON.stringify({
         name: data.get("name"), color: data.get("color"), icon: data.get("icon")
       }) });
-      showNotice("Category created under the admin account.");
+      showNotice(categoryResult.alreadyExists ? "That category already exists in the shared catalogue." : "Category added to the shared catalogue.");
       await renderCategories();
     }
     if (form.id === "offerForm") {
