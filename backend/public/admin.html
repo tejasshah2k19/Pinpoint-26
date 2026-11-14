@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#20211f">
+  <title>Pinpoint Admin</title>
+  <link rel="stylesheet" href="/admin-assets/admin.css">
+  <script defer src="/admin-assets/admin.js"></script>
+</head>
+<body>
+  <main id="loginView" class="login-wrap">
+    <section class="login-card">
+      <div class="brand"><span class="brand-mark">⌖</span><span>PINPOINT <small>ADMIN</small></span></div>
+      <p class="eyebrow">CONTROL CENTER</p>
+      <h1>Welcome back.</h1>
+      <p class="muted">Sign in with your administrator account to manage Pinpoint.</p>
+      <form id="loginForm">
+        <label>Email address<input id="loginEmail" type="email" autocomplete="username" required placeholder="admin@example.com"></label>
+        <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Your password"></label>
+        <button class="btn primary full" type="submit">Sign in to admin</button>
+        <p id="loginError" class="error" role="alert"></p>
+      </form>
+      <p class="footnote">Administrator permissions are verified by the Pinpoint server.</p>
+    </section>
+  </main>
+
+  <div id="appView" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="brand side-brand"><span class="brand-mark">⌖</span><span>PINPOINT <small>ADMIN</small></span></div>
+      <div class="side-label">WORKSPACE</div>
+      <nav id="navigation">
+        <button class="nav-item active" data-page="overview"><span>▦</span> Overview</button>
+        <button class="nav-item" data-page="users"><span>♙</span> Users</button>
+        <button class="nav-item" data-page="locations"><span>⌖</span> Locations</button>
+        <button class="nav-item" data-page="categories"><span>◇</span> Categories</button>
+        <button class="nav-item" data-page="offers"><span>％</span> Offers</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="admin-ident"><div class="avatar">A</div><div><b id="adminName">Administrator</b><small id="adminEmail"></small></div></div>
+        <button id="logoutButton" class="logout-button">↪ Sign out</button>
+      </div>
+    </aside>
+    <section class="main-area">
+      <header class="topbar">
+        <div><p class="eyebrow">PINPOINT MANAGEMENT</p><h1 id="pageTitle">Overview</h1></div>
+        <a class="open-app" href="/" target="_blank" rel="noreferrer">API status ↗</a>
+      </header>
+      <div id="notice" class="notice hidden"></div>
+      <section id="pageContent" class="content"></section>
+      <footer>Pinpoint Admin <span>·</span> Secure management console</footer>
+    </section>
+  </div>
+</body>
+</html>
