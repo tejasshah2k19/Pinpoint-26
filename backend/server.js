@@ -10,7 +10,18 @@ const User = require("./models/User");
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://unpkg.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com"],
+      imgSrc: ["'self'", "data:", "blob:", "https://*.tile.openstreetmap.org"],
+      connectSrc: ["'self'", "https://photon.komoot.io"],
+      fontSrc: ["'self'", "data:"]
+    }
+  }
+}));
 app.use(cors({
   origin: process.env.CLIENT_ORIGIN
     ? process.env.CLIENT_ORIGIN.split(",").map((value) => value.trim())
