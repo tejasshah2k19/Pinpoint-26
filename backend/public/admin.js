@@ -227,7 +227,7 @@ content.addEventListener("click", async function (event) {
     }
     if (button.dataset.action === "save-location-category") {
       const input = document.getElementById("newLocationCategory");
-      const name = input.value.trim().replace(/\\s+/g, " ");
+      const name = input.value.trim().replace(/\s+/g, " ");
       if (!name || name.length > 50) return showNotice("Enter a category name (maximum 50 characters).", true);
       const result = await api("/admin/categories", { method: "POST", body: JSON.stringify({ name: name }) });
       showNotice(result.alreadyExists ? "That category already exists. Select it from the dropdown." : "Category added to the shared dropdown.");
