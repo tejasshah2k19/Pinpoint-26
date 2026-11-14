@@ -9,7 +9,7 @@ import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { api } from "./src/api";
 
 const C = { paper:"#FAFAF5", white:"#FFFFFF", ink:"#20211F", muted:"#85857F", line:"#E8E7DF", coral:"#D97855", coralPale:"#F8E8DF", dark:"#20211F", red:"#B65C4D" };
-const CATEGORIES = ["All","Food","Travel","Shopping","Nature","Work","Other"];
+const DEFAULT_CATEGORIES = ["Food","Travel","Shopping","Nature","Work","Other"];
 
 function Field(p) {
   return <TextInput value={p.value} onChangeText={p.onChangeText} placeholder={p.placeholder}
@@ -59,6 +59,7 @@ export default function App() {
   const [search,setSearch] = useState("");
   const [category,setCategory] = useState("All");
   const [editingId,setEditingId] = useState(null);
+  const [showCustomCategory,setShowCustomCategory] = useState(false);
 
   async function loadLocations(t) {
     const active = t || token;
@@ -88,10 +89,11 @@ export default function App() {
       setPosition({latitude:current.coords.latitude,longitude:current.coords.longitude});
     } catch(e) { Alert.alert("Location unavailable",e.message); }
   }
-  function newPlace() { setEditingId(null); setForm({title:"",category:"Food",notes:""}); setPosition(null); setTab("Capture"); }
+  function newPlace() { setEditingId(null); setForm({title:"",category:"Food",notes:""}); setShowCustomCategory(false); setPosition(null); setTab("Capture"); }
   function editPlace(item) {
     const coords = item.coordinates && item.coordinates.coordinates || [];
     setEditingId(item._id); setForm({title:item.title || "",category:item.category || "Other",notes:item.notes || ""});
+    setShowCustomCategory(!DEFAULT_CATEGORIES.includes(item.category || "Other"));
     setPosition(coords.length === 2 ? {latitude:coords[1],longitude:coords[0]} : null); setTab("Capture");
   }
   async function savePlace() {
@@ -112,6 +114,7 @@ export default function App() {
       {text:"Delete",style:"destructive",onPress:async()=>{try{await api.deleteLocation(token,id);await loadLocations(token);}catch(e){Alert.alert("Delete failed",e.message);}}}
     ]);
   }
+  const categoryOptions = useMemo(() => ["All", ...new Set([...DEFAULT_CATEGORIES, ...locations.map(item => item.category).filter(Boolean)])], [locations]);
   const filtered = useMemo(() => locations.filter(item => {
     const matchCat = category === "All" || (item.category || "Other").toLowerCase() === category.toLowerCase();
     const q = search.trim().toLowerCase();
@@ -162,7 +165,7 @@ export default function App() {
       <Text style={s.placesTitle}>Your places</Text><Text style={s.placesSub}>Every spot, offer, and note in one view.</Text>
       <View style={s.searchBox}><Text style={s.searchIcon}>⌕</Text><TextInput value={search} onChangeText={setSearch} placeholder="Search places or offers" placeholderTextColor={C.muted} style={s.searchInput}/></View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipScroll} contentContainerStyle={s.chipRow}>
-        {CATEGORIES.map(item=><TouchableOpacity key={item} onPress={()=>setCategory(item)} style={[s.chip,category===item && s.chipActive]}><Text style={[s.chipText,category===item && s.chipTextActive]}>{item}</Text></TouchableOpacity>)}
+        {categoryOptions.map(item=><TouchableOpacity key={item} onPress={()=>setCategory(item)} style={[s.chip,category===item && s.chipActive]}><Text style={[s.chipText,category===item && s.chipTextActive]}>{item}</Text></TouchableOpacity>)}
       </ScrollView>
       <Text style={s.resultCount}>{filtered.length} {filtered.length === 1 ? "place" : "places"}</Text>
       {loading ? <ActivityIndicator color={C.coral} style={{marginTop:24}}/> : <FlatList data={filtered} keyExtractor={item=>item._id} renderItem={({item})=><PlaceCard item={item} onEdit={editPlace} onDelete={deletePlace}/>} ListEmptyComponent={<View style={s.empty}><Text style={s.emptyIcon}>◫</Text><Text style={s.emptyText}>No places found. Save your first place.</Text></View>} refreshing={loading} onRefresh={()=>loadLocations(token)}/>}
@@ -174,7 +177,10 @@ export default function App() {
         <TouchableOpacity onPress={()=>setTab("Home")}><Text style={s.back}>‹  Back</Text></TouchableOpacity>
         <Text style={s.placesTitle}>{editingId ? "Edit place" : "Save a place"}</Text><Text style={s.placesSub}>Keep the details you want to remember.</Text>
         <Text style={s.label}>Place name</Text><Field placeholder="e.g. Hidden Gem Cafe" value={form.title} onChangeText={v=>setForm({...form,title:v})}/>
-        <Text style={s.label}>Category</Text><Field placeholder="Food, Travel, Shopping..." value={form.category} onChangeText={v=>setForm({...form,category:v})}/>
+        <Text style={s.label}>Choose a category</Text>
+        <View style={s.categoryChoices}>{DEFAULT_CATEGORIES.map(item=><TouchableOpacity key={item} onPress={()=>{setForm({...form,category:item});setShowCustomCategory(false);}} style={[s.categoryChoice,form.category===item && !showCustomCategory && s.categoryChoiceActive]}><Text style={[s.categoryChoiceText,form.category===item && !showCustomCategory && s.categoryChoiceTextActive]}>{item}</Text></TouchableOpacity>)}
+        <TouchableOpacity onPress={()=>{setShowCustomCategory(true);setForm({...form,category:DEFAULT_CATEGORIES.includes(form.category) ? "" : form.category});}} style={[s.categoryChoice,showCustomCategory && s.categoryChoiceActive]}><Text style={[s.categoryChoiceText,showCustomCategory && s.categoryChoiceTextActive]}>＋ Custom</Text></TouchableOpacity></View>
+        {showCustomCategory && <><Text style={s.label}>Your custom category</Text><Field placeholder="e.g. Hidden gems, Events, Favourite spots" value={form.category} onChangeText={v=>setForm({...form,category:v})}/></>}
         <Text style={s.label}>Notes or offers</Text><Field placeholder="Add a useful note, offer or reminder" value={form.notes} onChangeText={v=>setForm({...form,notes:v})} multiline/>
         <Button title={position ? "Location captured ✓" : "Capture current GPS"} icon="⌖" onPress={locateMe}/>
         <Text style={s.locationStatus}>{position ? position.latitude.toFixed(5)+", "+position.longitude.toFixed(5) : "GPS location has not been captured yet."}</Text>
@@ -245,5 +251,7 @@ const s = StyleSheet.create({
  avatar:{width:58,height:58,borderRadius:29,backgroundColor:C.coralPale,alignItems:"center",justifyContent:"center",marginBottom:10},avatarText:{color:C.coral,fontSize:24,fontWeight:"800"},
  profileName:{color:C.ink,fontSize:16,fontWeight:"800"},profileEmail:{color:C.muted,fontSize:12,marginTop:4},
  privacyCard:{backgroundColor:"#F2F1EB",borderRadius:16,padding:16,marginTop:14},privacyTitle:{color:C.ink,fontSize:13,fontWeight:"800",marginBottom:5},
- privacyBody:{color:C.muted,fontSize:12,lineHeight:18},logout:{borderWidth:1,borderColor:C.line,borderRadius:14,padding:14,alignItems:"center",marginTop:18},logoutText:{color:C.red,fontSize:13,fontWeight:"800"}
+ privacyBody:{color:C.muted,fontSize:12,lineHeight:18},logout:{borderWidth:1,borderColor:C.line,borderRadius:14,padding:14,alignItems:"center",marginTop:18},logoutText:{color:C.red,fontSize:13,fontWeight:"800"},
+ categoryChoices:{flexDirection:"row",flexWrap:"wrap",marginBottom:8},categoryChoice:{backgroundColor:"#EEEDE6",borderRadius:18,paddingHorizontal:14,paddingVertical:10,marginRight:7,marginBottom:8,borderWidth:1,borderColor:"transparent"},categoryChoiceActive:{backgroundColor:C.coral,borderColor:C.coral},categoryChoiceText:{color:"#55564F",fontSize:12,fontWeight:"700"},categoryChoiceTextActive:{color:C.white}
+
 });
