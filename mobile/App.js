@@ -70,6 +70,7 @@ export default function App() {
   const [nearbyLoading,setNearbyLoading] = useState(false);
   const [form,setForm] = useState({title:"",category:"Food",address:"",notes:"",isPublic:false});
   const [categories,setCategories] = useState([]);
+  const [categoryLoading,setCategoryLoading] = useState(false);
   const [categoryDropdownOpen,setCategoryDropdownOpen] = useState(false);
   const [customCategoryName,setCustomCategoryName] = useState("");
   const [position,setPosition] = useState(null);
@@ -90,10 +91,12 @@ export default function App() {
   async function loadCategories(t) {
     const active = t || token;
     if (!active) return;
+    setCategoryLoading(true);
     try {
       const result = await api.getCategories(active);
       setCategories(result.data || []);
     } catch(e) { Alert.alert("Could not load categories",e.message); }
+    finally { setCategoryLoading(false); }
   }
   async function loadLocations(t) {
     const active = t || token;
@@ -267,12 +270,13 @@ export default function App() {
         <Text style={s.placesTitle}>{editingId ? "Edit place" : "Save a place"}</Text><Text style={s.placesSub}>Keep the details you want to remember.</Text>
         <Text style={s.label}>Place name</Text><Field placeholder="e.g. Hidden Gem Cafe" value={form.title} onChangeText={v=>setForm({...form,title:v})}/>
         <Text style={s.label}>Choose a category</Text>
-        <TouchableOpacity style={s.categoryDropdown} onPress={()=>setCategoryDropdownOpen(!categoryDropdownOpen)}>
+        <TouchableOpacity style={s.categoryDropdown} onPress={()=>{setCategoryDropdownOpen(!categoryDropdownOpen);if(!categories.length)loadCategories(token);}}>
           <Text style={s.categoryDropdownText}>{form.category || "Select category"}</Text>
           <Text style={s.categoryDropdownArrow}>{categoryDropdownOpen ? "⌃" : "⌄"}</Text>
         </TouchableOpacity>
         {categoryDropdownOpen && <View style={s.categoryDropdownMenu}>
           <ScrollView nestedScrollEnabled style={s.categoryDropdownScroll}>
+            {categoryLoading && !categoryNames.length && <Text style={s.categoryLoadingText}>Loading saved categories…</Text>}
             {categoryNames.map(item=><TouchableOpacity key={item} onPress={()=>{setForm({...form,category:item});setCategoryDropdownOpen(false);setShowCustomCategory(false);}} style={s.categoryDropdownOption}>
               <Text style={[s.categoryDropdownOptionText,form.category.toLowerCase()===String(item).toLowerCase() && s.categoryDropdownSelected]}>{item}</Text>
               {form.category.toLowerCase()===String(item).toLowerCase() && <Text style={s.categoryDropdownCheck}>✓</Text>}
@@ -434,6 +438,7 @@ const s = StyleSheet.create({
  categoryDropdownText:{color:C.ink,fontSize:14,fontWeight:"600"},categoryDropdownArrow:{color:C.muted,fontSize:18},
  categoryDropdownMenu:{backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:14,marginBottom:12,overflow:"hidden"},
  categoryDropdownScroll:{maxHeight:210},
+ categoryLoadingText:{color:C.muted,fontSize:11,padding:13},
  categoryDropdownOption:{paddingHorizontal:15,paddingVertical:12,borderBottomWidth:1,borderBottomColor:"#F0EFE9",flexDirection:"row",justifyContent:"space-between"},
  categoryDropdownOptionText:{color:C.ink,fontSize:13},categoryDropdownSelected:{color:C.coral,fontWeight:"800"},categoryDropdownCheck:{color:C.coral,fontWeight:"800"},
  addCategoryOption:{padding:13,backgroundColor:"#FBF3EF"},addCategoryText:{color:C.coral,fontWeight:"800",fontSize:12},
