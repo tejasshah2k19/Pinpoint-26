@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 
-module.exports = function authenticate(req, res, next) {
+module.exports = async function authenticate(req, res, next) {
   const header = req.headers.authorization || "";
   const [scheme, token] = header.split(" ");
 
@@ -14,9 +15,16 @@ module.exports = function authenticate(req, res, next) {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = payload.userId;
+    const user = await User.findById(payload.userId).select("isActive");
+    if (!user || user.isActive === false) {
+      return res.status(401).json({ success: false, message: "Account is unavailable" });
+    }
+    req.userId = user._id.toString();
     return next();
   } catch (error) {
-    return res.status(401).json({ success: false, message: "Invalid or expired token" });
+    if (error.name === "JsonWebTokenError" || error.name === "TokenExpiredError") {
+      return res.status(401).json({ success: false, message: "Invalid or expired token" });
+    }
+    return next(error);
   }
 };
