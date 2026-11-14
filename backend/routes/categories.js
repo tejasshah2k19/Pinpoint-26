@@ -25,7 +25,7 @@ router.get("/", async (req, res, next) => {
 
 router.post("/", async (req, res, next) => {
   try {
-    const name = typeof req.body.name === "string" ? req.body.name.trim().replace(/\\s+/g, " ") : "";
+    const name = typeof req.body.name === "string" ? req.body.name.trim().replace(/\s+/g, " ") : "";
     if (!name || name.length > 50) {
       return res.status(400).json({ success: false, message: "Category name is required (maximum 50 characters)" });
     }
@@ -54,7 +54,7 @@ router.put("/:id", async (req, res, next) => {
       if (typeof updates.name !== "string" || !updates.name.trim() || updates.name.trim().length > 50) {
         return res.status(400).json({ success: false, message: "Category name must be 1–50 characters" });
       }
-      updates.name = updates.name.trim().replace(/\\s+/g, " ");
+      updates.name = updates.name.trim().replace(/\s+/g, " ");
       const duplicate = await Category.findOne({
         _id: { $ne: req.params.id },
         name: new RegExp("^" + escapeRegex(updates.name) + "$", "i")
