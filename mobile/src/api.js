@@ -22,6 +22,7 @@ export const api = {
   login: (details) => request("/auth/login", { method: "POST", body: details }),
   me: (token) => request("/auth/me", { token }),
   getLocations: (token) => request("/locations", { token }),
+  getNearbyLocations: (token, latitude, longitude, maxDistance = 5000) => request("/locations/nearby?latitude=" + latitude + "&longitude=" + longitude + "&maxDistance=" + maxDistance, { token }),
   createLocation: (token, details) => request("/locations", { method: "POST", token, body: details }),
   getLocation: (token, id) => request(`/locations/${id}`, { token }),
   updateLocation: (token, id, details) => request(`/locations/${id}`, { method: "PUT", token, body: details }),
