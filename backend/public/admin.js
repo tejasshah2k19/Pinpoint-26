@@ -130,14 +130,31 @@ async function renderUsers() {
     '</tbody></table></div><p class="table-footnote">Deactivated accounts cannot sign in or use the mobile app. At least one active administrator is always required.</p>';
 }
 async function renderLocations() {
-  const result = await api("/admin/locations?limit=100");
-  const places = result.data || [];
+  const results = await Promise.all([api("/admin/locations?limit=100"), api("/admin/categories")]);
+  const places = results[0].data || [];
+  const categoryRecords = results[1].data || [];
+  const categoryNames = [];
+  const seenNames = new Set();
+  categoryRecords.concat(places.map(function (p) { return { name: p.category || "Other" }; })).forEach(function (item) {
+    const name = String(item.name || "").trim();
+    const key = name.toLocaleLowerCase();
+    if (name && !seenNames.has(key)) { seenNames.add(key); categoryNames.push(name); }
+  });
+  if (!seenNames.has("other")) categoryNames.push("Other");
+  function categoryOptions(selected) {
+    const names = categoryNames.slice();
+    if (selected && !names.some(function (name) { return name.toLocaleLowerCase() === selected.toLocaleLowerCase(); })) names.push(selected);
+    return names.map(function (name) {
+      return '<option value="' + escapeHtml(name) + '"' + (selected && name.toLocaleLowerCase() === selected.toLocaleLowerCase() ? " selected" : "") + '>' + escapeHtml(name) + '</option>';
+    }).join("");
+  }
   content.innerHTML =
     '<div class="section-intro"><div><h2>Location directory</h2><p>Add a useful public place or moderate saved locations from the community.</p></div><span class="count-pill">' + places.length + ' shown</span></div>' +
-    '<div class="panel form-panel"><div class="form-heading"><div><h3>Add a location</h3><p>Admin-added locations are public by default.</p></div><span class="public-tag">PUBLIC PLACE</span></div>' +
+    '<div class="panel form-panel"><div class="form-heading"><div><h3>Add a location</h3><p>Choose a saved category, or add a new one to the shared catalogue.</p></div><span class="public-tag">PUBLIC PLACE</span></div>' +
     '<form id="locationForm" class="form-grid">' +
     '<label class="span-2">Place name<input name="title" required maxlength="120" placeholder="e.g. Sabarmati Riverfront"></label>' +
-    '<label>Category<input name="category" maxlength="50" value="Other" placeholder="Food, Travel, Nature…"></label>' +
+    '<label>Category<select name="category" id="locationCategorySelect" required>' + categoryOptions("Other") + '</select></label>' +
+    '<div class="category-add-wrap"><button type="button" class="text-action" data-action="show-add-location-category">＋ Add custom category</button><div id="locationCustomCategoryBox" class="hidden custom-category-inline"><input id="newLocationCategory" maxlength="50" placeholder="New category name"><button type="button" class="btn secondary" data-action="save-location-category">Save category</button></div></div>' +
     '<label>Owner user ID (optional)<input name="userId" placeholder="Leave blank for admin-owned"></label>' +
     '<label class="span-2">Full address<input name="address" maxlength="300" placeholder="Street, area, city, state, PIN code"></label>' +
     '<label>Latitude<input name="latitude" type="number" step="any" min="-90" max="90" required placeholder="23.0225"></label>' +
@@ -146,15 +163,17 @@ async function renderLocations() {
     '<label class="check-label span-2"><input name="isPublic" type="checkbox" checked> Publish this place to all Pinpoint users</label>' +
     '<div class="span-2 form-actions"><button class="btn primary" type="submit">＋ Save location</button></div></form></div>' +
     '<div class="table-heading"><h3>All saved locations</h3><span>' + places.length + ' recent records</span></div>' +
-    '<div class="table-wrap"><table><thead><tr><th>PLACE</th><th>OWNER</th><th>VISIBILITY</th><th>ADDED</th><th>ACTIONS</th></tr></thead><tbody>' +
+    '<div class="table-wrap"><table><thead><tr><th>PLACE</th><th>CATEGORY</th><th>OWNER</th><th>VISIBILITY</th><th>ADDED</th><th>ACTIONS</th></tr></thead><tbody>' +
     (places.length ? places.map(function (p) {
       const owner = p.user && (p.user.name || p.user.email) || "Unknown";
-      return '<tr><td><b>' + escapeHtml(p.title) + '</b><small>' + escapeHtml(p.category || "Other") + (p.address ? " · " + escapeHtml(p.address) : "") + '</small></td><td>' + escapeHtml(owner) + '</td>' +
-      '<td><span class="status ' + (p.isPublic ? "public" : "private") + '">' + (p.isPublic ? "Public" : "Private") + '</span></td><td>' + dateText(p.createdAt) + '</td>' +
-      '<td class="actions"><button class="text-action" data-action="edit-location" data-id="' + escapeHtml(p._id) + '" data-title="' + escapeHtml(p.title) + '" data-category="' + escapeHtml(p.category || "Other") + '" data-address="' + escapeHtml(p.address || "") + '" data-notes="' + escapeHtml(p.notes || "") + '">Edit</button><button class="text-action" data-action="toggle-place" data-id="' + escapeHtml(p._id) + '" data-public="' + (!!p.isPublic) + '">' + (p.isPublic ? "Make private" : "Publish") + '</button><button class="text-action danger-text" data-action="delete-place" data-id="' + escapeHtml(p._id) + '">Delete</button></td></tr>';
-    }).join("") : '<tr><td colspan="5" class="empty-cell">No places have been saved yet.</td></tr>') +
+      return '<tr><td><b>' + escapeHtml(p.title) + '</b><small>' + escapeHtml(p.address || "—") + '</small></td>' +
+      '<td><select class="compact-select" data-location-category="' + escapeHtml(p._id) + '">' + categoryOptions(p.category || "Other") + '</select></td>' +
+      '<td>' + escapeHtml(owner) + '</td><td><span class="status ' + (p.isPublic ? "public" : "private") + '">' + (p.isPublic ? "Public" : "Private") + '</span></td><td>' + dateText(p.createdAt) + '</td>' +
+      '<td class="actions"><button class="text-action" data-action="edit-location" data-id="' + escapeHtml(p._id) + '" data-title="' + escapeHtml(p.title) + '" data-address="' + escapeHtml(p.address || "") + '" data-notes="' + escapeHtml(p.notes || "") + '">Edit</button><button class="text-action" data-action="toggle-place" data-id="' + escapeHtml(p._id) + '" data-public="' + (!!p.isPublic) + '">' + (p.isPublic ? "Make private" : "Publish") + '</button><button class="text-action danger-text" data-action="delete-place" data-id="' + escapeHtml(p._id) + '">Delete</button></td></tr>';
+    }).join("") : '<tr><td colspan="6" class="empty-cell">No places have been saved yet.</td></tr>') +
     '</tbody></table></div>';
 }
+
 async function renderCategories() {
   const result = await api("/admin/categories");
   const categories = result.data || [];
@@ -202,6 +221,21 @@ content.addEventListener("click", async function (event) {
   if (button.dataset.action === "retry") return window.location.reload();
   const id = button.dataset.id;
   try {
+    if (button.dataset.action === "show-add-location-category") {
+      document.getElementById("locationCustomCategoryBox").classList.toggle("hidden");
+      return;
+    }
+    if (button.dataset.action === "save-location-category") {
+      const input = document.getElementById("newLocationCategory");
+      const name = input.value.trim().replace(/\\s+/g, " ");
+      if (!name || name.length > 50) return showNotice("Enter a category name (maximum 50 characters).", true);
+      const result = await api("/admin/categories", { method: "POST", body: JSON.stringify({ name: name }) });
+      showNotice(result.alreadyExists ? "That category already exists. Select it from the dropdown." : "Category added to the shared dropdown.");
+      await renderLocations();
+      const select = document.getElementById("locationCategorySelect");
+      if (select && result.data && result.data.name) select.value = result.data.name;
+      return;
+    }
     if (button.dataset.action === "toggle-user") {
       await api("/admin/users/" + id, { method: "PATCH", body: JSON.stringify({ isActive: button.dataset.active === "false" }) });
       showNotice("User account updated.");
@@ -217,11 +251,9 @@ content.addEventListener("click", async function (event) {
       if (title === null) return;
       const address = window.prompt("Address", button.dataset.address);
       if (address === null) return;
-      const category = window.prompt("Category", button.dataset.category);
-      if (category === null) return;
       const notes = window.prompt("Notes", button.dataset.notes);
       if (notes === null) return;
-      await api("/admin/locations/" + id, { method: "PUT", body: JSON.stringify({ title: title, address: address, category: category, notes: notes }) });
+      await api("/admin/locations/" + id, { method: "PUT", body: JSON.stringify({ title: title, address: address, notes: notes }) });
       showNotice("Location details updated.");
       await renderLocations();
     }
@@ -259,6 +291,14 @@ content.addEventListener("click", async function (event) {
   } catch (err) { showNotice(err.message, true); }
 });
 content.addEventListener("change", async function (event) {
+  const categorySelect = event.target.closest("[data-location-category]");
+  if (categorySelect) {
+    try {
+      await api("/admin/locations/" + categorySelect.dataset.locationCategory, { method: "PUT", body: JSON.stringify({ category: categorySelect.value }) });
+      showNotice("Location category updated.");
+    } catch (err) { showNotice(err.message, true); await renderLocations(); }
+    return;
+  }
   const select = event.target.closest("[data-role-id]");
   if (!select) return;
   try {
