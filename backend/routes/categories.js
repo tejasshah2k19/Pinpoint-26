@@ -62,7 +62,7 @@ router.put("/:id", async (req, res, next) => {
       if (duplicate) return res.status(409).json({ success: false, message: "Another category already uses this name" });
     }
     const category = await Category.findOneAndUpdate(
-      { _id: req.params.id }, { $set: updates }, { new: true, runValidators: true }
+      { _id: req.params.id, user: req.userId }, { $set: updates }, { new: true, runValidators: true }
     );
     if (!category) return res.status(404).json({ success: false, message: "Category not found" });
     res.json({ success: true, data: category });
@@ -74,7 +74,7 @@ router.put("/:id", async (req, res, next) => {
 
 router.delete("/:id", async (req, res, next) => {
   try {
-    const category = await Category.findByIdAndDelete(req.params.id);
+    const category = await Category.findOneAndDelete({ _id: req.params.id, user: req.userId });
     if (!category) return res.status(404).json({ success: false, message: "Category not found" });
     res.json({ success: true, data: category, message: "Category deleted" });
   } catch (error) { next(error); }
