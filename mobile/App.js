@@ -69,6 +69,9 @@ export default function App() {
   const [nearbyCustomKm,setNearbyCustomKm] = useState("");
   const [nearbyLoading,setNearbyLoading] = useState(false);
   const [form,setForm] = useState({title:"",category:"Food",address:"",notes:"",isPublic:false});
+  const [categories,setCategories] = useState([]);
+  const [categoryDropdownOpen,setCategoryDropdownOpen] = useState(false);
+  const [customCategoryName,setCustomCategoryName] = useState("");
   const [position,setPosition] = useState(null);
   const mapRef = useRef(null);
   function selectPosition(coordinate) {
@@ -84,6 +87,14 @@ export default function App() {
   const [editingId,setEditingId] = useState(null);
   const [showCustomCategory,setShowCustomCategory] = useState(false);
 
+  async function loadCategories(t) {
+    const active = t || token;
+    if (!active) return;
+    try {
+      const result = await api.getCategories(active);
+      setCategories(result.data || []);
+    } catch(e) { Alert.alert("Could not load categories",e.message); }
+  }
   async function loadLocations(t) {
     const active = t || token;
     if (!active) return;
@@ -92,7 +103,7 @@ export default function App() {
     catch(e) { Alert.alert("Could not load places",e.message); }
     finally { setLoading(false); }
   }
-  useEffect(() => { if(token) loadLocations(token); },[token]);
+  useEffect(() => { if(token) { loadLocations(token); loadCategories(token); } },[token]);
 
   async function submitAuth() {
     if(!auth.email.trim() || !auth.password) return Alert.alert("Missing details","Enter your email and password.");
@@ -123,13 +134,33 @@ export default function App() {
       selectPosition({latitude:current.coords.latitude,longitude:current.coords.longitude});
     } catch(e) { Alert.alert("Location unavailable",e.message); }
   }
-  function newPlace() { setEditingId(null); setForm({title:"",category:"Food",address:"",notes:"",isPublic:false}); setShowCustomCategory(false); setPosition(null); setTab("Capture"); }
+  function newPlace() {
+    setEditingId(null);
+    setForm({title:"",category:(categories[0] && categories[0].name) || "Food",address:"",notes:"",isPublic:false});
+    setShowCustomCategory(false); setCustomCategoryName(""); setCategoryDropdownOpen(false);
+    setPosition(null); setTab("Capture");
+  }
   function editPlace(item) {
     const coords = item.coordinates && item.coordinates.coordinates || [];
     setEditingId(item._id); setForm({title:item.title || "",category:item.category || "Other",address:item.address || "",notes:item.notes || "",isPublic:item.isPublic === true});
-    setShowCustomCategory(!DEFAULT_CATEGORIES.includes(item.category || "Other"));
+    setShowCustomCategory(false); setCustomCategoryName(""); setCategoryDropdownOpen(false);
     const existingPosition = coords.length === 2 ? {latitude:coords[1],longitude:coords[0]} : null;
     setPosition(existingPosition); setTab("Capture");
+  }
+  async function addCustomCategory() {
+    const name = customCategoryName.trim().replace(/\\s+/g, " ");
+    if (!name) return Alert.alert("Enter a category","Type a category name first.");
+    if (name.length > 50) return Alert.alert("Category too long","Use 50 characters or fewer.");
+    setBusy(true);
+    try {
+      const result = await api.createCategory(token,{name});
+      const saved = result.data || {name};
+      await loadCategories(token);
+      setForm(current=>({...current,category:saved.name || name}));
+      setShowCustomCategory(false); setCategoryDropdownOpen(false); setCustomCategoryName("");
+      Alert.alert(result.alreadyExists ? "Category already available" : "Category added",result.alreadyExists ? "An existing category with the same name has been selected." : "This category is now available in the category dropdown.");
+    } catch(e) { Alert.alert("Could not add category",e.message); }
+    finally { setBusy(false); }
   }
   async function geocodeAddress() {
     const address = form.address.trim();
@@ -152,7 +183,7 @@ export default function App() {
     const details = {title:form.title.trim(),category:form.category.trim() || "Other",address:form.address.trim(),notes:form.notes.trim(),isPublic:form.isPublic,coordinates:{type:"Point",coordinates:[position.longitude,position.latitude]}};
     try {
       if(editingId) await api.updateLocation(token,editingId,details); else await api.createLocation(token,details);
-      await loadLocations(token); setForm({title:"",category:"Food",address:"",notes:"",isPublic:false}); setPosition(null); setEditingId(null); setTab("Places");
+      await loadLocations(token); setForm({title:"",category:(categories[0] && categories[0].name) || "Food",address:"",notes:"",isPublic:false}); setPosition(null); setShowCustomCategory(false); setCategoryDropdownOpen(false); setEditingId(null); setTab("Places");
       Alert.alert(editingId ? "Place updated" : "Place saved","Your place is safely stored in Pinpoint.");
     } catch(e) { Alert.alert("Could not save",e.message); }
     finally { setBusy(false); }
@@ -163,6 +194,15 @@ export default function App() {
       {text:"Delete",style:"destructive",onPress:async()=>{try{await api.deleteLocation(token,id);await loadLocations(token);}catch(e){Alert.alert("Delete failed",e.message);}}}
     ]);
   }
+  const categoryNames = useMemo(() => {
+    const names = [...categories.map(item=>typeof item === "string" ? item : item.name), ...locations.map(item=>item.category), ...DEFAULT_CATEGORIES].filter(Boolean);
+    const seen = new Set();
+    return names.filter(name=>{
+      const key=String(name).trim().toLocaleLowerCase();
+      if(!key || seen.has(key)) return false;
+      seen.add(key); return true;
+    }).sort((a,b)=>String(a).localeCompare(String(b)));
+  },[categories,locations]);
   const categoryOptions = useMemo(() => ["All", ...new Set([...DEFAULT_CATEGORIES, ...locations.map(item => item.category).filter(Boolean)])], [locations]);
   const filtered = useMemo(() => locations.filter(item => {
     const matchCat = category === "All" || (item.category || "Other").toLowerCase() === category.toLowerCase();
@@ -227,9 +267,25 @@ export default function App() {
         <Text style={s.placesTitle}>{editingId ? "Edit place" : "Save a place"}</Text><Text style={s.placesSub}>Keep the details you want to remember.</Text>
         <Text style={s.label}>Place name</Text><Field placeholder="e.g. Hidden Gem Cafe" value={form.title} onChangeText={v=>setForm({...form,title:v})}/>
         <Text style={s.label}>Choose a category</Text>
-        <View style={s.categoryChoices}>{DEFAULT_CATEGORIES.map(item=><TouchableOpacity key={item} onPress={()=>{setForm({...form,category:item});setShowCustomCategory(false);}} style={[s.categoryChoice,form.category===item && !showCustomCategory && s.categoryChoiceActive]}><Text style={[s.categoryChoiceText,form.category===item && !showCustomCategory && s.categoryChoiceTextActive]}>{item}</Text></TouchableOpacity>)}
-        <TouchableOpacity onPress={()=>{setShowCustomCategory(true);setForm({...form,category:DEFAULT_CATEGORIES.includes(form.category) ? "" : form.category});}} style={[s.categoryChoice,showCustomCategory && s.categoryChoiceActive]}><Text style={[s.categoryChoiceText,showCustomCategory && s.categoryChoiceTextActive]}>＋ Custom</Text></TouchableOpacity></View>
-        {showCustomCategory && <><Text style={s.label}>Your custom category</Text><Field placeholder="e.g. Hidden gems, Events, Favourite spots" value={form.category} onChangeText={v=>setForm({...form,category:v})}/></>}
+        <TouchableOpacity style={s.categoryDropdown} onPress={()=>setCategoryDropdownOpen(!categoryDropdownOpen)}>
+          <Text style={s.categoryDropdownText}>{form.category || "Select category"}</Text>
+          <Text style={s.categoryDropdownArrow}>{categoryDropdownOpen ? "⌃" : "⌄"}</Text>
+        </TouchableOpacity>
+        {categoryDropdownOpen && <View style={s.categoryDropdownMenu}>
+          <ScrollView nestedScrollEnabled style={s.categoryDropdownScroll}>
+            {categoryNames.map(item=><TouchableOpacity key={item} onPress={()=>{setForm({...form,category:item});setCategoryDropdownOpen(false);setShowCustomCategory(false);}} style={s.categoryDropdownOption}>
+              <Text style={[s.categoryDropdownOptionText,form.category.toLowerCase()===String(item).toLowerCase() && s.categoryDropdownSelected]}>{item}</Text>
+              {form.category.toLowerCase()===String(item).toLowerCase() && <Text style={s.categoryDropdownCheck}>✓</Text>}
+            </TouchableOpacity>)}
+          </ScrollView>
+          <TouchableOpacity style={s.addCategoryOption} onPress={()=>setShowCustomCategory(!showCustomCategory)}>
+            <Text style={s.addCategoryText}>＋ Add custom category</Text>
+          </TouchableOpacity>
+          {showCustomCategory && <View style={s.customCategoryBox}>
+            <Field placeholder="Enter new category name" value={customCategoryName} onChangeText={setCustomCategoryName}/>
+            <Button title={busy ? "Saving category..." : "Save category"} onPress={addCustomCategory} disabled={busy}/>
+          </View>}
+        </View>}
         <Text style={s.label}>Who can see this place?</Text>
         <View style={s.categoryChoices}>
           <TouchableOpacity onPress={()=>setForm({...form,isPublic:false})} style={[s.categoryChoice,!form.isPublic && s.categoryChoiceActive]}><Text style={[s.categoryChoiceText,!form.isPublic && s.categoryChoiceTextActive]}>🔒 Private</Text></TouchableOpacity>
@@ -374,6 +430,14 @@ const s = StyleSheet.create({
  profileName:{color:C.ink,fontSize:16,fontWeight:"800"},profileEmail:{color:C.muted,fontSize:12,marginTop:4},
  privacyCard:{backgroundColor:"#F2F1EB",borderRadius:16,padding:16,marginTop:14},privacyTitle:{color:C.ink,fontSize:13,fontWeight:"800",marginBottom:5},
  privacyBody:{color:C.muted,fontSize:12,lineHeight:18},logout:{borderWidth:1,borderColor:C.line,borderRadius:14,padding:14,alignItems:"center",marginTop:18},logoutText:{color:C.red,fontSize:13,fontWeight:"800"},
+ categoryDropdown:{backgroundColor:"#F2F1EB",borderWidth:1,borderColor:"#E6E4DC",borderRadius:14,paddingHorizontal:14,paddingVertical:14,marginBottom:8,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},
+ categoryDropdownText:{color:C.ink,fontSize:14,fontWeight:"600"},categoryDropdownArrow:{color:C.muted,fontSize:18},
+ categoryDropdownMenu:{backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:14,marginBottom:12,overflow:"hidden"},
+ categoryDropdownScroll:{maxHeight:210},
+ categoryDropdownOption:{paddingHorizontal:15,paddingVertical:12,borderBottomWidth:1,borderBottomColor:"#F0EFE9",flexDirection:"row",justifyContent:"space-between"},
+ categoryDropdownOptionText:{color:C.ink,fontSize:13},categoryDropdownSelected:{color:C.coral,fontWeight:"800"},categoryDropdownCheck:{color:C.coral,fontWeight:"800"},
+ addCategoryOption:{padding:13,backgroundColor:"#FBF3EF"},addCategoryText:{color:C.coral,fontWeight:"800",fontSize:12},
+ customCategoryBox:{padding:12,borderTopWidth:1,borderTopColor:C.line},
  categoryChoices:{flexDirection:"row",flexWrap:"wrap",marginBottom:8},categoryChoice:{backgroundColor:"#EEEDE6",borderRadius:18,paddingHorizontal:14,paddingVertical:10,marginRight:7,marginBottom:8,borderWidth:1,borderColor:"transparent"},categoryChoiceActive:{backgroundColor:C.coral,borderColor:C.coral},categoryChoiceText:{color:"#55564F",fontSize:12,fontWeight:"700"},categoryChoiceTextActive:{color:C.white},
 
  mapHint:{color:C.muted,fontSize:11,lineHeight:16,marginTop:-2,marginBottom:9},
