@@ -198,6 +198,12 @@ router.put("/locations/:id", async (req, res, next) => {
       if (!coordinates) return res.status(400).json({ success: false, message: "Valid coordinates are required" });
       updates.coordinates = coordinates;
     }
+    if (req.body.userId !== undefined) {
+      if (!validId(req.body.userId)) return res.status(400).json({ success: false, message: "Invalid owner user ID" });
+      const owner = await User.findById(req.body.userId).select("_id");
+      if (!owner) return res.status(404).json({ success: false, message: "Owner user not found" });
+      updates.user = owner._id;
+    }
     if (updates.isPublic !== undefined && typeof updates.isPublic !== "boolean") {
       return res.status(400).json({ success: false, message: "isPublic must be true or false" });
     }
