@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Linking, Platform,
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput,
   TouchableOpacity, View
 } from "react-native";
 import * as Location from "expo-location";
+import MapView, { Marker } from "react-native-maps";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { api } from "./src/api";
 
@@ -68,6 +69,13 @@ export default function App() {
   const [nearbyLoading,setNearbyLoading] = useState(false);
   const [form,setForm] = useState({title:"",category:"Food",address:"",notes:"",isPublic:false});
   const [position,setPosition] = useState(null);
+  const mapRef = useRef(null);
+  function selectPosition(coordinate) {
+    if (!coordinate || !Number.isFinite(coordinate.latitude) || !Number.isFinite(coordinate.longitude)) return;
+    const next = { latitude: coordinate.latitude, longitude: coordinate.longitude };
+    setPosition(next);
+    if (mapRef.current) mapRef.current.animateToRegion({ ...next, latitudeDelta: 0.008, longitudeDelta: 0.008 }, 350);
+  }
   const [busy,setBusy] = useState(false);
   const [loading,setLoading] = useState(false);
   const [search,setSearch] = useState("");
@@ -111,7 +119,7 @@ export default function App() {
       const permission = await Location.requestForegroundPermissionsAsync();
       if(permission.status !== "granted") return Alert.alert("Location permission","Allow location access to capture a place when you choose.");
       const current = await Location.getCurrentPositionAsync({accuracy:Location.Accuracy.Balanced});
-      setPosition({latitude:current.coords.latitude,longitude:current.coords.longitude});
+      selectPosition({latitude:current.coords.latitude,longitude:current.coords.longitude});
     } catch(e) { Alert.alert("Location unavailable",e.message); }
   }
   function newPlace() { setEditingId(null); setForm({title:"",category:"Food",address:"",notes:"",isPublic:false}); setShowCustomCategory(false); setPosition(null); setTab("Capture"); }
@@ -119,7 +127,8 @@ export default function App() {
     const coords = item.coordinates && item.coordinates.coordinates || [];
     setEditingId(item._id); setForm({title:item.title || "",category:item.category || "Other",address:item.address || "",notes:item.notes || "",isPublic:item.isPublic === true});
     setShowCustomCategory(!DEFAULT_CATEGORIES.includes(item.category || "Other"));
-    setPosition(coords.length === 2 ? {latitude:coords[1],longitude:coords[0]} : null); setTab("Capture");
+    const existingPosition = coords.length === 2 ? {latitude:coords[1],longitude:coords[0]} : null;
+    setPosition(existingPosition); setTab("Capture");
   }
   async function geocodeAddress() {
     const address = form.address.trim();
@@ -129,7 +138,7 @@ export default function App() {
       const results = await Location.geocodeAsync(address);
       if(!results || !results.length) return Alert.alert("Address not found","Please check the address and include area, city, state and PIN code.");
       const match = results[0];
-      setPosition({latitude:match.latitude,longitude:match.longitude});
+      selectPosition({latitude:match.latitude,longitude:match.longitude});
       Alert.alert("Address located","Coordinates found. Review the address and save your place.");
     } catch(e) {
       Alert.alert("Could not find address","Please check your internet connection or try a more complete address.");
@@ -142,7 +151,7 @@ export default function App() {
     const details = {title:form.title.trim(),category:form.category.trim() || "Other",address:form.address.trim(),notes:form.notes.trim(),isPublic:form.isPublic,coordinates:{type:"Point",coordinates:[position.longitude,position.latitude]}};
     try {
       if(editingId) await api.updateLocation(token,editingId,details); else await api.createLocation(token,details);
-      await loadLocations(token); setForm({title:"",category:"Food",address:"",notes:""}); setPosition(null); setEditingId(null); setTab("Places");
+      await loadLocations(token); setForm({title:"",category:"Food",address:"",notes:"",isPublic:false}); setPosition(null); setEditingId(null); setTab("Places");
       Alert.alert(editingId ? "Place updated" : "Place saved","Your place is safely stored in Pinpoint.");
     } catch(e) { Alert.alert("Could not save",e.message); }
     finally { setBusy(false); }
@@ -228,9 +237,41 @@ export default function App() {
         <Text style={s.privacyBody}>{form.isPublic ? "Anyone using Pinpoint can discover this place in Nearby. Your account details are not displayed as part of the place card." : "Only you can see this place. It will not appear in other users’ Nearby results."}</Text>
         <Text style={s.label}>Full address (optional)</Text><Field placeholder="Building, street, area, city, state, PIN code" value={form.address} onChangeText={v=>setForm({...form,address:v})} multiline/>
         <Button title={busy ? "Finding address..." : "Find coordinates from address"} icon="⌖" onPress={geocodeAddress} disabled={busy}/>
-        <Text style={s.locationStatus}>Or use your current GPS location instead:</Text>
-        <Button title="Use current GPS location" icon="◎" onPress={locateMe}/>
-        <Text style={s.locationStatus}>{position ? "Selected coordinates: "+position.latitude.toFixed(6)+", "+position.longitude.toFixed(6) : "No coordinates selected yet. Choose GPS or enter an address."}</Text>
+        <Text style={s.label}>Select the exact point on the map</Text>
+        <Text style={s.mapHint}>Tap anywhere on the map to place the pin. You can also drag the pin to fine-tune its position.</Text>
+        <View style={s.mapFrame}>
+          <MapView
+            ref={mapRef}
+            style={s.map}
+            initialRegion={{
+              latitude: position ? position.latitude : 23.0225,
+              longitude: position ? position.longitude : 72.5714,
+              latitudeDelta: position ? 0.012 : 0.08,
+              longitudeDelta: position ? 0.012 : 0.08
+            }}
+            onPress={event=>selectPosition(event.nativeEvent.coordinate)}
+            showsCompass
+            showsScale
+            toolbarEnabled
+            zoomEnabled
+            scrollEnabled
+          >
+            {position && <Marker
+              coordinate={position}
+              draggable
+              title={form.title || "Selected place"}
+              description="Drag to adjust this exact location"
+              onDragEnd={event=>selectPosition(event.nativeEvent.coordinate)}
+              pinColor={C.coral}
+            />}
+          </MapView>
+          {!position && <View pointerEvents="none" style={s.mapOverlay}><Text style={s.mapOverlayText}>Tap the map to drop a pin</Text></View>}
+        </View>
+        <Text style={s.locationStatus}>{position ? "Selected pin: "+position.latitude.toFixed(6)+", "+position.longitude.toFixed(6) : "No pin selected yet."}</Text>
+        <View style={s.mapButtons}>
+          <View style={s.mapButtonCell}><Button title="Use current GPS" icon="◎" onPress={locateMe}/></View>
+          <View style={s.mapButtonCell}><Button title="Find by address" icon="⌖" onPress={geocodeAddress} disabled={busy}/></View>
+        </View>
         <Button title={busy ? "Saving..." : editingId ? "Update place" : "Save place"} onPress={savePlace} disabled={busy}/>
       </ScrollView>
     </KeyboardAvoidingView>}
@@ -309,5 +350,13 @@ const s = StyleSheet.create({
  privacyCard:{backgroundColor:"#F2F1EB",borderRadius:16,padding:16,marginTop:14},privacyTitle:{color:C.ink,fontSize:13,fontWeight:"800",marginBottom:5},
  privacyBody:{color:C.muted,fontSize:12,lineHeight:18},logout:{borderWidth:1,borderColor:C.line,borderRadius:14,padding:14,alignItems:"center",marginTop:18},logoutText:{color:C.red,fontSize:13,fontWeight:"800"},
  categoryChoices:{flexDirection:"row",flexWrap:"wrap",marginBottom:8},categoryChoice:{backgroundColor:"#EEEDE6",borderRadius:18,paddingHorizontal:14,paddingVertical:10,marginRight:7,marginBottom:8,borderWidth:1,borderColor:"transparent"},categoryChoiceActive:{backgroundColor:C.coral,borderColor:C.coral},categoryChoiceText:{color:"#55564F",fontSize:12,fontWeight:"700"},categoryChoiceTextActive:{color:C.white}
+,
+ mapHint:{color:C.muted,fontSize:11,lineHeight:16,marginTop:-2,marginBottom:9},
+ mapFrame:{height:275,borderRadius:17,overflow:"hidden",borderWidth:1,borderColor:C.line,backgroundColor:"#EEEDE6"},
+ map:{flex:1},
+ mapOverlay:{position:"absolute",top:12,left:12,right:12,alignItems:"center"},
+ mapOverlayText:{backgroundColor:"rgba(32,33,31,0.82)",color:C.white,fontSize:11,fontWeight:"700",paddingHorizontal:13,paddingVertical:8,borderRadius:18},
+ mapButtons:{flexDirection:"row",gap:9},
+ mapButtonCell:{flex:1}
 
 });
