@@ -235,7 +235,7 @@ function searchAdminPlaceNames(query) {
       if (wait) await new Promise(function (resolve) { window.setTimeout(resolve, wait); });
       if (controller.signal.aborted) return;
       lastPhotonRequestAt = Date.now();
-      const url = "https://photon.komoot.io/api/?q=" + encodeURIComponent(query.trim()) + "&limit=6&lat=23.0225&lon=72.5714&lang=en";
+      const url = "https://photon.komoot.io/api/?q=" + encodeURIComponent(query.trim()) + "&limit=6&lang=en";
       const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) throw new Error("Place search is temporarily unavailable");
       const payload = await response.json();
