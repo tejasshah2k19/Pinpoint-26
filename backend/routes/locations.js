@@ -30,7 +30,7 @@ router.post("/", async (req, res, next) => {
     const location = await Location.create({
       ...input,
       user: req.userId,
-      isPublic: false
+      isPublic: typeof req.body.isPublic === "boolean" ? req.body.isPublic : false
     });
     return res.status(201).json({ success: true, location });
   } catch (error) {
@@ -86,7 +86,7 @@ router.put("/:id", async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, message: "Invalid location ID" });
     const input = locationInput(req.body);
-    delete input.isPublic;
+    if (typeof req.body.isPublic === "boolean") input.isPublic = req.body.isPublic;
     const location = await Location.findOneAndUpdate(
       { _id: req.params.id, user: req.userId },
       { $set: input },
