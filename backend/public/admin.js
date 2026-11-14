@@ -295,10 +295,10 @@ async function renderLocations() {
     '<div class="section-intro"><div><h2>Location directory</h2><p>Add a useful public place or moderate saved locations from the community.</p></div><span class="count-pill">' + places.length + ' shown</span></div>' +
     '<div class="panel form-panel"><div class="form-heading"><div><h3>Add a location</h3><p>Search for a place, choose a map point, or do both to verify the exact position.</p></div><span class="public-tag">PUBLIC PLACE</span></div>' +
     '<form id="locationForm" class="form-grid">' +
-    '<label class="span-2">Search place name or address' +
-    '<input id="placeSearchInput" type="search" autocomplete="off" placeholder="Start typing e.g. Sabarmati Riverfront, Ahmedabad">' +
+    '<div class="span-2 place-search-field"><label>Search place name or address' +
+    '<input id="placeSearchInput" type="search" autocomplete="off" placeholder="Start typing e.g. Sabarmati Riverfront, Ahmedabad"></label>' +
     '<div id="placeSuggestions" class="place-suggestions hidden"></div>' +
-    '<small class="field-hint">Choose a suggestion to automatically fill the place name, address and map pin.</small></label>' +
+    '<small class="field-hint">Choose a suggestion to automatically fill the place name, address and map pin.</small></div>' +
     '<label class="span-2">Place name<input id="locationTitle" name="title" required maxlength="120" placeholder="e.g. Sabarmati Riverfront"></label>' +
     '<label>Category<select name="category" id="locationCategorySelect" required>' + categoryOptions("Other") + '</select></label>' +
     '<div class="category-add-wrap"><button type="button" class="text-action" data-action="show-add-location-category">＋ Add custom category</button><div id="locationCustomCategoryBox" class="hidden custom-category-inline"><input id="newLocationCategory" maxlength="50" placeholder="New category name"><button type="button" class="btn secondary" data-action="save-location-category">Save category</button></div></div>' +
