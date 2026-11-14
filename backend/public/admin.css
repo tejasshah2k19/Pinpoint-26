@@ -24,3 +24,12 @@
 .map-status{font-size:10px;color:#85867e;margin:8px 0 14px}
 .map-load-error{padding:25px;color:#a64d40;font-size:12px}
 @media(max-width:700px){.admin-location-map{height:290px}.place-suggestions{top:67px}.map-picker-heading{align-items:flex-start}}
+
+
+/* Google Maps URL import */
+.google-import-panel{margin-bottom:16px;border:1px solid #ead9cd;background:linear-gradient(135deg,#fffdfb,#fbf5ef)}
+.import-tag{display:inline-flex;align-items:center;padding:6px 9px;border-radius:20px;background:#f6e7dc;color:#a95d3d;font-size:9px;font-weight:800;letter-spacing:.5px;white-space:nowrap}
+.google-import-row{display:flex;align-items:center;gap:10px;margin:12px 0 7px}
+.google-import-row input{flex:1;min-width:0}
+.google-import-row .btn{flex:none;white-space:nowrap}
+@media(max-width:600px){.google-import-row{align-items:stretch;flex-direction:column}.google-import-row .btn{width:100%}}
