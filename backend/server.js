@@ -16,7 +16,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "https://unpkg.com"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com"],
-      imgSrc: ["'self'", "data:", "blob:", "https://*.tile.openstreetmap.org"],
+      imgSrc: ["'self'", "data:", "blob:", "https://*.tile.openstreetmap.org", "https://unpkg.com"],
       connectSrc: ["'self'", "https://photon.komoot.io"],
       fontSrc: ["'self'", "data:"]
     }
