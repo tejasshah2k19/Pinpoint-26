@@ -134,6 +134,7 @@ let adminLocationMarker = null;
 let placeSuggestionTimer = null;
 let placeSuggestionController = null;
 let placeSuggestions = [];
+let lastPhotonRequestAt = 0;
 
 function photonAddress(properties) {
   const p = properties || {};
@@ -226,11 +227,16 @@ function searchAdminPlaceNames(query) {
   }
   box.classList.remove("hidden");
   box.innerHTML = '<div class="suggestion-message">Searching places…</div>';
+  const controller = new AbortController();
+  placeSuggestionController = controller;
   placeSuggestionTimer = window.setTimeout(async function () {
-    placeSuggestionController = new AbortController();
     try {
+      const wait = Math.max(0, 1100 - (Date.now() - lastPhotonRequestAt));
+      if (wait) await new Promise(function (resolve) { window.setTimeout(resolve, wait); });
+      if (controller.signal.aborted) return;
+      lastPhotonRequestAt = Date.now();
       const url = "https://photon.komoot.io/api/?q=" + encodeURIComponent(query.trim()) + "&limit=6&lat=23.0225&lon=72.5714&lang=en";
-      const response = await fetch(url, { signal: placeSuggestionController.signal });
+      const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) throw new Error("Place search is temporarily unavailable");
       const payload = await response.json();
       placeSuggestions = (payload.features || []).filter(function (feature) {
