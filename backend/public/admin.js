@@ -361,6 +361,11 @@ async function renderOffers() {
 }
 
 content.addEventListener("click", async function (event) {
+  const suggestion = event.target.closest("[data-suggestion-index]");
+  if (suggestion) {
+    chooseAdminPlaceSuggestion(Number(suggestion.dataset.suggestionIndex));
+    return;
+  }
   const go = event.target.closest("[data-go]");
   if (go) return navigate(go.dataset.go);
   const quick = event.target.closest('[data-action="quick-add-location"]');
@@ -370,6 +375,28 @@ content.addEventListener("click", async function (event) {
   if (button.dataset.action === "retry") return window.location.reload();
   const id = button.dataset.id;
   try {
+    if (button.dataset.action === "reset-admin-map") {
+      const title = document.getElementById("locationTitle");
+      const search = document.getElementById("placeSearchInput");
+      const address = document.getElementById("locationAddress");
+      const lat = document.getElementById("locationLatitude");
+      const lng = document.getElementById("locationLongitude");
+      if (title) title.value = "";
+      if (search) search.value = "";
+      if (address) address.value = "";
+      if (lat) lat.value = "";
+      if (lng) lng.value = "";
+      const suggestions = document.getElementById("placeSuggestions");
+      if (suggestions) { suggestions.innerHTML = ""; suggestions.classList.add("hidden"); }
+      if (adminLocationMap) {
+        if (adminLocationMarker) adminLocationMap.removeLayer(adminLocationMarker);
+        adminLocationMarker = null;
+        adminLocationMap.setView([23.0225, 72.5714], 12);
+      }
+      const status = document.getElementById("locationMapStatus");
+      if (status) status.textContent = "No coordinates selected. Choose a search suggestion or click the map.";
+      return;
+    }
     if (button.dataset.action === "show-add-location-category") {
       document.getElementById("locationCustomCategoryBox").classList.toggle("hidden");
       return;
@@ -448,6 +475,11 @@ content.addEventListener("click", async function (event) {
       await renderOffers();
     }
   } catch (err) { showNotice(err.message, true); }
+});
+content.addEventListener("input", function (event) {
+  if (event.target && event.target.id === "placeSearchInput") {
+    searchAdminPlaceNames(event.target.value);
+  }
 });
 content.addEventListener("change", async function (event) {
   const categorySelect = event.target.closest("[data-location-category]");
