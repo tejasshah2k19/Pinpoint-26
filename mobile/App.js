@@ -66,6 +66,7 @@ export default function App() {
   const [locations,setLocations] = useState([]);
   const [nearbyLocations,setNearbyLocations] = useState([]);
   const [nearbyRadius,setNearbyRadius] = useState(5000);
+  const [nearbyCustomKm,setNearbyCustomKm] = useState("");
   const [nearbyLoading,setNearbyLoading] = useState(false);
   const [form,setForm] = useState({title:"",category:"Food",address:"",notes:"",isPublic:false});
   const [position,setPosition] = useState(null);
@@ -280,6 +281,25 @@ export default function App() {
     {tab === "Nearby" && <View style={s.screen}>
       <Text style={s.placesTitle}>Nearby places</Text><Text style={s.placesSub}>Discover places around your current location.</Text>
       <View style={s.categoryChoices}>{[{label:"1 km",value:1000},{label:"5 km",value:5000},{label:"10 km",value:10000},{label:"25 km",value:25000}].map(r=><TouchableOpacity key={r.value} onPress={()=>setNearbyRadius(r.value)} style={[s.categoryChoice,nearbyRadius===r.value && s.categoryChoiceActive]}><Text style={[s.categoryChoiceText,nearbyRadius===r.value && s.categoryChoiceTextActive]}>{r.label}</Text></TouchableOpacity>)}</View>
+      <Text style={s.label}>Custom distance (km)</Text>
+      <View style={s.customRadiusRow}>
+        <TextInput
+          value={nearbyCustomKm}
+          onChangeText={value=>setNearbyCustomKm(value.replace(/[^0-9.]/g,""))}
+          placeholder="Enter any distance, e.g. 60 or 70"
+          placeholderTextColor={C.muted}
+          keyboardType="decimal-pad"
+          style={s.customRadiusInput}
+        />
+        <TouchableOpacity style={s.customRadiusApply} onPress={()=>{
+          const km=Number(nearbyCustomKm);
+          if(!nearbyCustomKm.trim() || !Number.isFinite(km) || km<1 || km>1000) return Alert.alert("Invalid distance","Enter a distance from 1 to 1,000 km.");
+          setNearbyRadius(Math.round(km*1000));
+        }}>
+          <Text style={s.customRadiusApplyText}>Apply</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={s.locationStatus}>Choose 1–25 km above or enter a custom distance up to 1,000 km.</Text>
       <Button title={nearbyLoading ? "Finding nearby places..." : "⌖  Find places near me"} onPress={loadNearby} disabled={nearbyLoading}/>
       <Text style={s.resultCount}>{nearbyLocations.length} {nearbyLocations.length===1 ? "place" : "places"} within {nearbyRadius/1000} km</Text>
       {nearbyLoading ? <ActivityIndicator color={C.coral} style={{marginTop:24}}/> : <FlatList data={nearbyLocations} keyExtractor={item=>item._id} renderItem={({item})=><PlaceCard item={item} showActions={false}/>} ListEmptyComponent={<View style={s.empty}><Text style={s.emptyIcon}>⌖</Text><Text style={s.emptyText}>Tap “Find places near me” to discover nearby saved places.</Text></View>} refreshing={nearbyLoading} onRefresh={loadNearby}/>}
@@ -345,6 +365,10 @@ const s = StyleSheet.create({
  tabs:{flexDirection:"row",backgroundColor:C.paper,borderTopWidth:1,borderTopColor:C.line,paddingTop:9,paddingBottom:Platform.OS==="ios"?18:10},
  tabButton:{flex:1,alignItems:"center",justifyContent:"center"},tabIcon:{color:"#96978F",fontSize:22,marginBottom:2},tabLabel:{color:"#96978F",fontSize:10},active:{color:C.coral,fontWeight:"800"},
  back:{color:"#A9674F",fontWeight:"700",marginBottom:17,fontSize:14},locationStatus:{color:C.muted,fontSize:11,textAlign:"center",marginVertical:8},
+ customRadiusRow:{flexDirection:"row",alignItems:"center",gap:8,marginBottom:3},
+ customRadiusInput:{flex:1,backgroundColor:"#F2F1EB",borderWidth:1,borderColor:"#E6E4DC",borderRadius:14,paddingHorizontal:14,paddingVertical:13,fontSize:13,color:C.ink},
+ customRadiusApply:{backgroundColor:C.dark,borderRadius:13,paddingHorizontal:20,paddingVertical:14,alignItems:"center",justifyContent:"center"},
+ customRadiusApplyText:{color:C.white,fontSize:12,fontWeight:"800"},
  reminderHint:{color:C.muted,fontSize:11,marginTop:8},profileCard:{backgroundColor:C.white,borderRadius:18,borderWidth:1,borderColor:C.line,alignItems:"center",padding:24,marginTop:12},
  avatar:{width:58,height:58,borderRadius:29,backgroundColor:C.coralPale,alignItems:"center",justifyContent:"center",marginBottom:10},avatarText:{color:C.coral,fontSize:24,fontWeight:"800"},
  profileName:{color:C.ink,fontSize:16,fontWeight:"800"},profileEmail:{color:C.muted,fontSize:12,marginTop:4},
