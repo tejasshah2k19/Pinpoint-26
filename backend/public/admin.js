@@ -118,7 +118,13 @@ async function renderUsers() {
   const result = await api("/admin/users?limit=100");
   const users = result.data || [];
   content.innerHTML =
-    '<div class="section-intro"><div><h2>Community accounts</h2><p>Review account status and assign administrator access.</p></div><span class="count-pill">' + users.length + ' shown</span></div>' +
+    '<div class="section-intro"><div><h2>Community accounts</h2><p>Create accounts, assign administrator access and manage account status.</p></div><span class="count-pill">' + users.length + ' shown</span></div>' +
+    '<div class="panel form-panel"><h3>Create a user account</h3><form id="userForm" class="form-grid">' +
+    '<label>Name<input name="name" required maxlength="80" autocomplete="name" placeholder="Full name"></label>' +
+    '<label>Email<input name="email" type="email" required maxlength="254" autocomplete="email" placeholder="name@example.com"></label>' +
+    '<label>Password<input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters"></label>' +
+    '<label>Account role<select name="role"><option value="user">User</option><option value="admin">Admin</option></select></label>' +
+    '<div class="span-2 form-actions"><button class="btn primary" type="submit">＋ Create account</button><small class="field-hint">New users can sign in immediately. Admin accounts can access this dashboard.</small></div></form></div>' +
     '<div class="table-wrap"><table><thead><tr><th>USER</th><th>JOINED</th><th>ROLE</th><th>STATUS</th><th>ACTION</th></tr></thead><tbody>' +
     (users.length ? users.map(function (u) {
       const isSelf = String(u._id) === String(adminUser && adminUser.id);
@@ -578,12 +584,19 @@ content.addEventListener("change", async function (event) {
 });
 content.addEventListener("submit", async function (event) {
   const form = event.target;
-  if (!["locationForm", "categoryForm", "offerForm"].includes(form.id)) return;
+  if (!["userForm", "locationForm", "categoryForm", "offerForm"].includes(form.id)) return;
   event.preventDefault();
   const button = form.querySelector('button[type="submit"]');
   button.disabled = true;
   const data = new FormData(form);
   try {
+    if (form.id === "userForm") {
+      const result = await api("/admin/users", { method: "POST", body: JSON.stringify({
+        name: data.get("name"), email: data.get("email"), password: data.get("password"), role: data.get("role")
+      }) });
+      showNotice(result.data.role === "admin" ? "New administrator account created." : "New user account created.");
+      await renderUsers();
+    }
     if (form.id === "locationForm") {
       const body = {
         title: data.get("title"), category: data.get("category"), userId: data.get("userId") || undefined,
