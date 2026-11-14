@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Linking, Platform,
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput,
   TouchableOpacity, View
 } from "react-native";
@@ -30,6 +30,15 @@ function TabButton(p) {
 function PlaceCard(p) {
   const coords = p.item.coordinates && p.item.coordinates.coordinates || [];
   const lat = Number(coords[1]), lng = Number(coords[0]);
+  async function openInMaps() {
+    const query = Number.isFinite(lat) && Number.isFinite(lng)
+      ? `${lat},${lng}`
+      : p.item.address;
+    if (!query) return Alert.alert("Location unavailable","This place has no coordinates or address yet.");
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+    try { await Linking.openURL(url); }
+    catch(e) { Alert.alert("Could not open Google Maps","Please try again."); }
+  }
   return <View style={s.placeCard}>
     <View style={s.pin}><Text style={s.pinText}>⌖</Text></View>
     <View style={s.placeInfo}>
@@ -40,6 +49,7 @@ function PlaceCard(p) {
       {Number.isFinite(lat) && Number.isFinite(lng) && <Text style={s.coords}>{lat.toFixed(5)}, {lng.toFixed(5)}</Text>}
     </View>
     <View style={s.actions}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open place in Google Maps" onPress={openInMaps} style={s.action}><Text style={s.mapAction}>⌖</Text></TouchableOpacity>
       <TouchableOpacity onPress={() => p.onEdit(p.item)} style={s.action}><Text style={s.edit}>↗</Text></TouchableOpacity>
       <TouchableOpacity onPress={() => p.onDelete(p.item._id)} style={s.action}><Text style={s.delete}>×</Text></TouchableOpacity>
     </View>
@@ -259,7 +269,7 @@ const s = StyleSheet.create({
  pin:{width:36,height:36,borderRadius:18,backgroundColor:C.coralPale,alignItems:"center",justifyContent:"center",marginRight:10},pinText:{color:C.coral,fontSize:22},
  placeInfo:{flex:1},placeTitle:{color:C.ink,fontSize:13,fontWeight:"800"},placeCategory:{color:"#B36F53",fontSize:11,fontWeight:"700",marginTop:3},
  notes:{color:"#67675F",fontSize:11,marginTop:4},coords:{color:C.muted,fontSize:10,marginTop:7},
- actions:{flexDirection:"row",marginLeft:5},action:{padding:6,marginLeft:3},edit:{color:"#8A8D83",fontSize:18,fontWeight:"700"},delete:{color:C.red,fontSize:22},
+ actions:{flexDirection:"row",marginLeft:5},action:{padding:6,marginLeft:3},mapAction:{color:C.coral,fontSize:20,fontWeight:"800"},edit:{color:"#8A8D83",fontSize:18,fontWeight:"700"},delete:{color:C.red,fontSize:22},
  fab:{position:"absolute",right:23,bottom:18,width:52,height:52,borderRadius:26,backgroundColor:C.coral,alignItems:"center",justifyContent:"center",elevation:4},fabText:{color:C.white,fontSize:28,lineHeight:32},
  tabs:{flexDirection:"row",backgroundColor:C.paper,borderTopWidth:1,borderTopColor:C.line,paddingTop:9,paddingBottom:Platform.OS==="ios"?18:10},
  tabButton:{flex:1,alignItems:"center",justifyContent:"center"},tabIcon:{color:"#96978F",fontSize:22,marginBottom:2},tabLabel:{color:"#96978F",fontSize:10},active:{color:C.coral,fontWeight:"800"},
