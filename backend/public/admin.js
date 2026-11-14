@@ -211,7 +211,8 @@ function parseGoogleMapsLocationLink(rawLink) {
     catch (_) { placeSegment = placeMatch[1].replace(/\+/g, " "); }
   }
   placeSegment = placeSegment.replace(/\s+/g, " ").trim();
-  const title = placeSegment ? placeSegment.split(",")[0].trim() : "";
+  const rawTitle = placeSegment ? placeSegment.split(",")[0].trim() : "";
+  const title = rawTitle.replace(/\b[a-z]/g, function (letter) { return letter.toUpperCase(); });
   const address = placeSegment || "";
   if (latitude === null || longitude === null || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
     throw new Error("This Google Maps link does not contain extractable coordinates. Open the place in Google Maps and copy its full browser URL, not the short share link.");
