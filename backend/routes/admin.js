@@ -10,6 +10,62 @@ const requireAdmin = require("../middleware/requireAdmin");
 const router = express.Router();
 router.use(authenticate, requireAdmin);
 
+router.get("/place-search", async (req, res, next) => {
+  try {
+    const query = String(req.query.q || "").trim().slice(0, 150);
+    if (query.length < 3) {
+      return res.status(400).json({ success: false, message: "Enter at least 3 characters to search for a place" });
+    }
+    const url = new URL("https://photon.komoot.io/api/");
+    url.searchParams.set("q", query);
+    url.searchParams.set("limit", "6");
+    url.searchParams.set("lang", "en");
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Pinpoint/1.0 admin location autocomplete"
+      },
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!response.ok) {
+      return res.status(502).json({ success: false, message: "Place search provider is temporarily unavailable" });
+    }
+    const payload = await response.json();
+    return res.json({ success: true, features: payload.features || [] });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/reverse-geocode", async (req, res, next) => {
+  try {
+    const latitude = Number(req.query.lat);
+    const longitude = Number(req.query.lon);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+        !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      return res.status(400).json({ success: false, message: "Valid latitude and longitude are required" });
+    }
+    const url = new URL("https://photon.komoot.io/reverse");
+    url.searchParams.set("lat", String(latitude));
+    url.searchParams.set("lon", String(longitude));
+    url.searchParams.set("lang", "en");
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Pinpoint/1.0 admin reverse geocoding"
+      },
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!response.ok) {
+      return res.status(502).json({ success: false, message: "Address lookup is temporarily unavailable" });
+    }
+    const payload = await response.json();
+    return res.json({ success: true, features: payload.features || [] });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 function validId(id) {
   return mongoose.isValidObjectId(id);
 }
