@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Pinpoint",
+    "slug": "pinpoint",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#F7F8FA"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Pinpoint uses your location when you choose to save a place."
+      }
+    },
+    "android": {
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      "package": "com.pinpoint.app"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Pinpoint to use your location when you choose to save a place."
+        }
+      ]
+    ]
+  }
+}
