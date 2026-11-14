@@ -40,7 +40,14 @@ router.post("/", async (req, res, next) => {
 
 router.get("/", async (req, res, next) => {
   try {
-    const locations = await Location.find({ user: req.userId }).sort({ createdAt: -1 });
+    const records = await Location.find({
+      $or: [{ user: req.userId }, { isPublic: true }]
+    }).sort({ createdAt: -1 });
+    const locations = records.map((location) => {
+      const item = location.toObject();
+      item.isOwner = String(location.user) === String(req.userId);
+      return item;
+    });
     return res.json({ success: true, locations });
   } catch (error) {
     return next(error);
@@ -78,9 +85,14 @@ router.get("/nearby", async (req, res, next) => {
 router.get("/:id", async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, message: "Invalid location ID" });
-    const location = await Location.findOne({ _id: req.params.id, user: req.userId });
+    const location = await Location.findOne({
+      _id: req.params.id,
+      $or: [{ user: req.userId }, { isPublic: true }]
+    });
     if (!location) return res.status(404).json({ success: false, message: "Location not found" });
-    return res.json({ success: true, location });
+    const item = location.toObject();
+    item.isOwner = String(location.user) === String(req.userId);
+    return res.json({ success: true, location: item });
   } catch (error) {
     return next(error);
   }
