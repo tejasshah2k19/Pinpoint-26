@@ -350,8 +350,8 @@ const s = StyleSheet.create({
  profileName:{color:C.ink,fontSize:16,fontWeight:"800"},profileEmail:{color:C.muted,fontSize:12,marginTop:4},
  privacyCard:{backgroundColor:"#F2F1EB",borderRadius:16,padding:16,marginTop:14},privacyTitle:{color:C.ink,fontSize:13,fontWeight:"800",marginBottom:5},
  privacyBody:{color:C.muted,fontSize:12,lineHeight:18},logout:{borderWidth:1,borderColor:C.line,borderRadius:14,padding:14,alignItems:"center",marginTop:18},logoutText:{color:C.red,fontSize:13,fontWeight:"800"},
- categoryChoices:{flexDirection:"row",flexWrap:"wrap",marginBottom:8},categoryChoice:{backgroundColor:"#EEEDE6",borderRadius:18,paddingHorizontal:14,paddingVertical:10,marginRight:7,marginBottom:8,borderWidth:1,borderColor:"transparent"},categoryChoiceActive:{backgroundColor:C.coral,borderColor:C.coral},categoryChoiceText:{color:"#55564F",fontSize:12,fontWeight:"700"},categoryChoiceTextActive:{color:C.white}
-,
+ categoryChoices:{flexDirection:"row",flexWrap:"wrap",marginBottom:8},categoryChoice:{backgroundColor:"#EEEDE6",borderRadius:18,paddingHorizontal:14,paddingVertical:10,marginRight:7,marginBottom:8,borderWidth:1,borderColor:"transparent"},categoryChoiceActive:{backgroundColor:C.coral,borderColor:C.coral},categoryChoiceText:{color:"#55564F",fontSize:12,fontWeight:"700"},categoryChoiceTextActive:{color:C.white},
+
  mapHint:{color:C.muted,fontSize:11,lineHeight:16,marginTop:-2,marginBottom:9},
  mapFrame:{height:275,borderRadius:17,overflow:"hidden",borderWidth:1,borderColor:C.line,backgroundColor:"#EEEDE6"},
  map:{flex:1},
