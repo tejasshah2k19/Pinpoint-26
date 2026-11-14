@@ -57,7 +57,7 @@ router.get("/nearby", async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Valid longitude and latitude are required" });
     }
     const locations = await Location.find({
-      user: req.userId,
+      $or: [{ user: req.userId }, { isPublic: true }],
       coordinates: {
         $near: {
           $geometry: { type: "Point", coordinates: [longitude, latitude] },
