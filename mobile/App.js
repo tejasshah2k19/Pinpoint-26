@@ -45,6 +45,7 @@ function PlaceCard(p) {
     <View style={s.placeInfo}>
       <Text style={s.placeTitle} numberOfLines={1}>{p.item.title}</Text>
       <Text style={s.placeCategory}>{p.item.category || "Other"}</Text>
+      {p.item.isOwner === false && <Text style={s.communityTag}>PUBLIC COMMUNITY PLACE · VIEW ONLY</Text>}
       {!!p.item.address && <Text style={s.notes} numberOfLines={2}>{p.item.address}</Text>}
       {!!p.item.notes && <Text style={s.notes} numberOfLines={2}>{p.item.notes}</Text>}
       {Number.isFinite(lat) && Number.isFinite(lng) && <Text style={s.coords}>{lat.toFixed(5)}, {lng.toFixed(5)}</Text>}
@@ -250,17 +251,17 @@ export default function App() {
       </View>
       <Button title="Capture current location" icon="＋" onPress={()=>{newPlace();locateMe();}}/>
       <View style={s.sectionHead}><Text style={s.sectionTitle}>Recently saved</Text><TouchableOpacity onPress={()=>setTab("Places")}><Text style={s.viewAll}>View all</Text></TouchableOpacity></View>
-      {loading ? <ActivityIndicator color={C.coral} style={{marginTop:24}}/> : recent.length ? recent.map(item=><PlaceCard key={item._id} item={item} onEdit={editPlace} onDelete={deletePlace}/>) : <View style={s.empty}><Text style={s.emptyIcon}>◫</Text><Text style={s.emptyText}>No locations logged yet</Text></View>}
+      {loading ? <ActivityIndicator color={C.coral} style={{marginTop:24}}/> : recent.length ? recent.map(item=><PlaceCard key={item._id} item={item} showActions={item.isOwner === true} onEdit={editPlace} onDelete={deletePlace}/>) : <View style={s.empty}><Text style={s.emptyIcon}>◫</Text><Text style={s.emptyText}>No locations logged yet</Text></View>}
     </ScrollView>}
 
     {tab === "Places" && <View style={s.screen}>
-      <Text style={s.placesTitle}>Your places</Text><Text style={s.placesSub}>Every spot, offer, and note in one view.</Text>
+      <Text style={s.placesTitle}>Places</Text><Text style={s.placesSub}>Your saved places and public places shared by the Pinpoint community.</Text>
       <View style={s.searchBox}><Text style={s.searchIcon}>⌕</Text><TextInput value={search} onChangeText={setSearch} placeholder="Search places or offers" placeholderTextColor={C.muted} style={s.searchInput}/></View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipScroll} contentContainerStyle={s.chipRow}>
         {categoryOptions.map(item=><TouchableOpacity key={item} onPress={()=>setCategory(item)} style={[s.chip,category===item && s.chipActive]}><Text style={[s.chipText,category===item && s.chipTextActive]}>{item}</Text></TouchableOpacity>)}
       </ScrollView>
       <Text style={s.resultCount}>{filtered.length} {filtered.length === 1 ? "place" : "places"}</Text>
-      {loading ? <ActivityIndicator color={C.coral} style={{marginTop:24}}/> : <FlatList data={filtered} keyExtractor={item=>item._id} renderItem={({item})=><PlaceCard item={item} onEdit={editPlace} onDelete={deletePlace}/>} ListEmptyComponent={<View style={s.empty}><Text style={s.emptyIcon}>◫</Text><Text style={s.emptyText}>No places found. Save your first place.</Text></View>} refreshing={loading} onRefresh={()=>loadLocations(token)}/>}
+      {loading ? <ActivityIndicator color={C.coral} style={{marginTop:24}}/> : <FlatList data={filtered} keyExtractor={item=>item._id} renderItem={({item})=><PlaceCard item={item} showActions={item.isOwner === true} onEdit={editPlace} onDelete={deletePlace}/>} ListEmptyComponent={<View style={s.empty}><Text style={s.emptyIcon}>◫</Text><Text style={s.emptyText}>No places found. Save your first place.</Text></View>} refreshing={loading} onRefresh={()=>loadLocations(token)}/>}
       <TouchableOpacity style={s.fab} onPress={newPlace}><Text style={s.fabText}>＋</Text></TouchableOpacity>
     </View>}
 
@@ -418,7 +419,7 @@ const s = StyleSheet.create({
  chipText:{color:"#55564F",fontSize:11,fontWeight:"700"},chipTextActive:{color:C.white},resultCount:{color:C.muted,fontSize:11,marginBottom:11},
  placeCard:{backgroundColor:"#F5F4EE",borderRadius:17,borderWidth:1,borderColor:"#E9E7DE",padding:13,flexDirection:"row",alignItems:"center",marginBottom:10,minHeight:82},
  pin:{width:36,height:36,borderRadius:18,backgroundColor:C.coralPale,alignItems:"center",justifyContent:"center",marginRight:10},pinText:{color:C.coral,fontSize:22},
- placeInfo:{flex:1},placeTitle:{color:C.ink,fontSize:13,fontWeight:"800"},placeCategory:{color:"#B36F53",fontSize:11,fontWeight:"700",marginTop:3},
+ placeInfo:{flex:1},placeTitle:{color:C.ink,fontSize:13,fontWeight:"800"},placeCategory:{color:"#B36F53",fontSize:11,fontWeight:"700",marginTop:3},communityTag:{color:"#5A8066",fontSize:8,fontWeight:"800",letterSpacing:0.35,marginTop:4},
  notes:{color:"#67675F",fontSize:11,marginTop:4},coords:{color:C.muted,fontSize:10,marginTop:7},
  actions:{flexDirection:"row",marginLeft:5},action:{padding:6,marginLeft:3},mapAction:{color:C.coral,fontSize:20,fontWeight:"800"},edit:{color:"#8A8D83",fontSize:18,fontWeight:"700"},delete:{color:C.red,fontSize:22},
  fab:{position:"absolute",right:23,bottom:18,width:52,height:52,borderRadius:26,backgroundColor:C.coral,alignItems:"center",justifyContent:"center",elevation:4},fabText:{color:C.white,fontSize:28,lineHeight:32},
