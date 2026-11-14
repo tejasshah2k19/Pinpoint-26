@@ -232,7 +232,7 @@ function searchAdminPlaceNames(query) {
       if (wait) await new Promise(function (resolve) { window.setTimeout(resolve, wait); });
       if (controller.signal.aborted) return;
       lastPhotonRequestAt = Date.now();
-      const payload = await api("/admin/place-search?q=" + encodeURIComponent(query.trim()));
+      const payload = await api("/admin/place-search?q=" + encodeURIComponent(query.trim()), { signal: controller.signal });
       placeSuggestions = (payload.features || []).filter(function (feature) {
         return feature.geometry && Array.isArray(feature.geometry.coordinates) && feature.geometry.coordinates.length === 2;
       });
