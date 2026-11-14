@@ -37,6 +37,8 @@ app.get("/api/v1/health", (req, res) => {
 
 app.use("/api/v1/auth", require("./routes/auth"));
 app.use("/api/v1/locations", require("./routes/locations"));
+app.use("/api/v1/categories", require("./routes/categories"));
+app.use("/api/v1/offers", require("./routes/offers"));
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
