@@ -133,7 +133,7 @@ export default function App() {
   const filtered = useMemo(() => locations.filter(item => {
     const matchCat = category === "All" || (item.category || "Other").toLowerCase() === category.toLowerCase();
     const q = search.trim().toLowerCase();
-    const matchText = !q || [item.title,item.category,item.notes].some(v => String(v || "").toLowerCase().includes(q));
+    const matchText = !q || [item.title,item.category,item.address,item.notes].some(v => String(v || "").toLowerCase().includes(q));
     return matchCat && matchText;
   }),[locations,category,search]);
 
@@ -171,7 +171,7 @@ export default function App() {
         <Text style={s.logHint}>{locations.length === 0 ? "Your first pin is waiting" : "Memories, mapped and remembered."}</Text>
         <View style={s.orbitOne}/><View style={s.orbitTwo}/><View style={s.compass}><Text style={s.compassText}>➤</Text></View>
       </View>
-      <Button title="Capture current location" icon="＋" onPress={async()=>{await locateMe();newPlace();}}/>
+      <Button title="Capture current location" icon="＋" onPress={()=>{newPlace();locateMe();}}/>
       <View style={s.sectionHead}><Text style={s.sectionTitle}>Recently saved</Text><TouchableOpacity onPress={()=>setTab("Places")}><Text style={s.viewAll}>View all</Text></TouchableOpacity></View>
       {loading ? <ActivityIndicator color={C.coral} style={{marginTop:24}}/> : recent.length ? recent.map(item=><PlaceCard key={item._id} item={item} onEdit={editPlace} onDelete={deletePlace}/>) : <View style={s.empty}><Text style={s.emptyIcon}>◫</Text><Text style={s.emptyText}>No locations logged yet</Text></View>}
     </ScrollView>}
