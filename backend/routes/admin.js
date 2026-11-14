@@ -1,5 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const Location = require("../models/Location");
 const Category = require("../models/Category");
@@ -113,6 +114,29 @@ router.get("/users", async (req, res, next) => {
     ]);
     res.json({ success: true, data, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (error) { next(error); }
+});
+
+router.post("/users", async (req, res, next) => {
+  try {
+    const name = String(req.body.name || "").trim();
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+    const role = req.body.role === undefined ? "user" : req.body.role;
+    if (!name || name.length > 80 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || password.length < 8) {
+      return res.status(400).json({ success: false, message: "Enter a name, valid email and password of at least 8 characters" });
+    }
+    if (!["user", "admin"].includes(role)) return res.status(400).json({ success: false, message: "Role must be user or admin" });
+    const existing = await User.findOne({ email }).select("_id");
+    if (existing) return res.status(409).json({ success: false, message: "Email is already registered" });
+    const passwordHash = await bcrypt.hash(password, 12);
+    const user = await User.create({ name, email, passwordHash, role, isActive: true });
+    return res.status(201).json({ success: true, data: {
+      _id: user._id, name: user.name, email: user.email, role: user.role, isActive: user.isActive, createdAt: user.createdAt
+    } });
+  } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ success: false, message: "Email is already registered" });
+    return next(error);
+  }
 });
 
 router.patch("/users/:id", async (req, res, next) => {
