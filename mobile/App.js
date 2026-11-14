@@ -35,6 +35,7 @@ function PlaceCard(p) {
     <View style={s.placeInfo}>
       <Text style={s.placeTitle} numberOfLines={1}>{p.item.title}</Text>
       <Text style={s.placeCategory}>{p.item.category || "Other"}</Text>
+      {!!p.item.address && <Text style={s.notes} numberOfLines={2}>{p.item.address}</Text>}
       {!!p.item.notes && <Text style={s.notes} numberOfLines={2}>{p.item.notes}</Text>}
       {Number.isFinite(lat) && Number.isFinite(lng) && <Text style={s.coords}>{lat.toFixed(5)}, {lng.toFixed(5)}</Text>}
     </View>
@@ -52,7 +53,7 @@ export default function App() {
   const [auth,setAuth] = useState({name:"",email:"",password:""});
   const [tab,setTab] = useState("Home");
   const [locations,setLocations] = useState([]);
-  const [form,setForm] = useState({title:"",category:"Food",notes:""});
+  const [form,setForm] = useState({title:"",category:"Food",address:"",notes:""});
   const [position,setPosition] = useState(null);
   const [busy,setBusy] = useState(false);
   const [loading,setLoading] = useState(false);
@@ -89,21 +90,35 @@ export default function App() {
       setPosition({latitude:current.coords.latitude,longitude:current.coords.longitude});
     } catch(e) { Alert.alert("Location unavailable",e.message); }
   }
-  function newPlace() { setEditingId(null); setForm({title:"",category:"Food",notes:""}); setShowCustomCategory(false); setPosition(null); setTab("Capture"); }
+  function newPlace() { setEditingId(null); setForm({title:"",category:"Food",address:"",notes:""}); setShowCustomCategory(false); setPosition(null); setTab("Capture"); }
   function editPlace(item) {
     const coords = item.coordinates && item.coordinates.coordinates || [];
-    setEditingId(item._id); setForm({title:item.title || "",category:item.category || "Other",notes:item.notes || ""});
+    setEditingId(item._id); setForm({title:item.title || "",category:item.category || "Other",address:item.address || "",notes:item.notes || ""});
     setShowCustomCategory(!DEFAULT_CATEGORIES.includes(item.category || "Other"));
     setPosition(coords.length === 2 ? {latitude:coords[1],longitude:coords[0]} : null); setTab("Capture");
   }
+  async function geocodeAddress() {
+    const address = form.address.trim();
+    if(!address) return Alert.alert("Enter an address","Add a full address before finding its coordinates.");
+    setBusy(true);
+    try {
+      const results = await Location.geocodeAsync(address);
+      if(!results || !results.length) return Alert.alert("Address not found","Please check the address and include area, city, state and PIN code.");
+      const match = results[0];
+      setPosition({latitude:match.latitude,longitude:match.longitude});
+      Alert.alert("Address located","Coordinates found. Review the address and save your place.");
+    } catch(e) {
+      Alert.alert("Could not find address","Please check your internet connection or try a more complete address.");
+    } finally { setBusy(false); }
+  }
   async function savePlace() {
     if(!form.title.trim()) return Alert.alert("Add a title","Enter a name for this place.");
-    if(!position) return Alert.alert("Choose a location","Capture your current GPS location first.");
+    if(!position) return Alert.alert("Choose a location","Use current GPS or find coordinates from the address.");
     setBusy(true);
-    const details = {title:form.title.trim(),category:form.category.trim() || "Other",notes:form.notes.trim(),coordinates:{type:"Point",coordinates:[position.longitude,position.latitude]}};
+    const details = {title:form.title.trim(),category:form.category.trim() || "Other",address:form.address.trim(),notes:form.notes.trim(),coordinates:{type:"Point",coordinates:[position.longitude,position.latitude]}};
     try {
       if(editingId) await api.updateLocation(token,editingId,details); else await api.createLocation(token,details);
-      await loadLocations(token); setForm({title:"",category:"Food",notes:""}); setPosition(null); setEditingId(null); setTab("Places");
+      await loadLocations(token); setForm({title:"",category:"Food",address:"",notes:""}); setPosition(null); setEditingId(null); setTab("Places");
       Alert.alert(editingId ? "Place updated" : "Place saved","Your place is safely stored in Pinpoint.");
     } catch(e) { Alert.alert("Could not save",e.message); }
     finally { setBusy(false); }
@@ -181,9 +196,11 @@ export default function App() {
         <View style={s.categoryChoices}>{DEFAULT_CATEGORIES.map(item=><TouchableOpacity key={item} onPress={()=>{setForm({...form,category:item});setShowCustomCategory(false);}} style={[s.categoryChoice,form.category===item && !showCustomCategory && s.categoryChoiceActive]}><Text style={[s.categoryChoiceText,form.category===item && !showCustomCategory && s.categoryChoiceTextActive]}>{item}</Text></TouchableOpacity>)}
         <TouchableOpacity onPress={()=>{setShowCustomCategory(true);setForm({...form,category:DEFAULT_CATEGORIES.includes(form.category) ? "" : form.category});}} style={[s.categoryChoice,showCustomCategory && s.categoryChoiceActive]}><Text style={[s.categoryChoiceText,showCustomCategory && s.categoryChoiceTextActive]}>＋ Custom</Text></TouchableOpacity></View>
         {showCustomCategory && <><Text style={s.label}>Your custom category</Text><Field placeholder="e.g. Hidden gems, Events, Favourite spots" value={form.category} onChangeText={v=>setForm({...form,category:v})}/></>}
-        <Text style={s.label}>Notes or offers</Text><Field placeholder="Add a useful note, offer or reminder" value={form.notes} onChangeText={v=>setForm({...form,notes:v})} multiline/>
-        <Button title={position ? "Location captured ✓" : "Capture current GPS"} icon="⌖" onPress={locateMe}/>
-        <Text style={s.locationStatus}>{position ? position.latitude.toFixed(5)+", "+position.longitude.toFixed(5) : "GPS location has not been captured yet."}</Text>
+        <Text style={s.label}>Full address (optional)</Text><Field placeholder="Building, street, area, city, state, PIN code" value={form.address} onChangeText={v=>setForm({...form,address:v})} multiline/>
+        <Button title={busy ? "Finding address..." : "Find coordinates from address"} icon="⌖" onPress={geocodeAddress} disabled={busy}/>
+        <Text style={s.locationStatus}>Or use your current GPS location instead:</Text>
+        <Button title="Use current GPS location" icon="◎" onPress={locateMe}/>
+        <Text style={s.locationStatus}>{position ? "Selected coordinates: "+position.latitude.toFixed(6)+", "+position.longitude.toFixed(6) : "No coordinates selected yet. Choose GPS or enter an address."}</Text>
         <Button title={busy ? "Saving..." : editingId ? "Update place" : "Save place"} onPress={savePlace} disabled={busy}/>
       </ScrollView>
     </KeyboardAvoidingView>}
