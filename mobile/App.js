@@ -50,8 +50,8 @@ function PlaceCard(p) {
     </View>
     <View style={s.actions}>
       <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open place in Google Maps" onPress={openInMaps} style={s.action}><Text style={s.mapAction}>⌖</Text></TouchableOpacity>
-      <TouchableOpacity onPress={() => p.onEdit(p.item)} style={s.action}><Text style={s.edit}>↗</Text></TouchableOpacity>
-      <TouchableOpacity onPress={() => p.onDelete(p.item._id)} style={s.action}><Text style={s.delete}>×</Text></TouchableOpacity>
+      {p.showActions !== false && <><TouchableOpacity onPress={() => p.onEdit(p.item)} style={s.action}><Text style={s.edit}>↗</Text></TouchableOpacity>
+      <TouchableOpacity onPress={() => p.onDelete(p.item._id)} style={s.action}><Text style={s.delete}>×</Text></TouchableOpacity></>}
     </View>
   </View>;
 }
@@ -63,6 +63,9 @@ export default function App() {
   const [auth,setAuth] = useState({name:"",email:"",password:""});
   const [tab,setTab] = useState("Home");
   const [locations,setLocations] = useState([]);
+  const [nearbyLocations,setNearbyLocations] = useState([]);
+  const [nearbyRadius,setNearbyRadius] = useState(5000);
+  const [nearbyLoading,setNearbyLoading] = useState(false);
   const [form,setForm] = useState({title:"",category:"Food",address:"",notes:""});
   const [position,setPosition] = useState(null);
   const [busy,setBusy] = useState(false);
@@ -91,6 +94,17 @@ export default function App() {
       setToken(result.token); setUser(result.user); setTab("Home");
     } catch(e) { Alert.alert("Authentication failed",e.message); }
     finally { setBusy(false); }
+  }
+  async function loadNearby() {
+    setNearbyLoading(true);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if(permission.status !== "granted") { Alert.alert("Location permission","Allow location access to find places near you."); return; }
+      const current = await Location.getCurrentPositionAsync({accuracy:Location.Accuracy.Balanced});
+      const result = await api.getNearbyLocations(token,current.coords.latitude,current.coords.longitude,nearbyRadius);
+      setNearbyLocations(result.locations || []);
+    } catch(e) { Alert.alert("Nearby places unavailable",e.message); }
+    finally { setNearbyLoading(false); }
   }
   async function locateMe() {
     try {
@@ -215,6 +229,14 @@ export default function App() {
       </ScrollView>
     </KeyboardAvoidingView>}
 
+    {tab === "Nearby" && <View style={s.screen}>
+      <Text style={s.placesTitle}>Nearby places</Text><Text style={s.placesSub}>Discover places around your current location.</Text>
+      <View style={s.categoryChoices}>{[{label:"1 km",value:1000},{label:"5 km",value:5000},{label:"10 km",value:10000},{label:"25 km",value:25000}].map(r=><TouchableOpacity key={r.value} onPress={()=>setNearbyRadius(r.value)} style={[s.categoryChoice,nearbyRadius===r.value && s.categoryChoiceActive]}><Text style={[s.categoryChoiceText,nearbyRadius===r.value && s.categoryChoiceTextActive]}>{r.label}</Text></TouchableOpacity>)}</View>
+      <Button title={nearbyLoading ? "Finding nearby places..." : "⌖  Find places near me"} onPress={loadNearby} disabled={nearbyLoading}/>
+      <Text style={s.resultCount}>{nearbyLocations.length} {nearbyLocations.length===1 ? "place" : "places"} within {nearbyRadius/1000} km</Text>
+      {nearbyLoading ? <ActivityIndicator color={C.coral} style={{marginTop:24}}/> : <FlatList data={nearbyLocations} keyExtractor={item=>item._id} renderItem={({item})=><PlaceCard item={item} showActions={false}/>} ListEmptyComponent={<View style={s.empty}><Text style={s.emptyIcon}>⌖</Text><Text style={s.emptyText}>Tap “Find places near me” to discover nearby saved places.</Text></View>} refreshing={nearbyLoading} onRefresh={loadNearby}/>}
+    </View>}
+
     {tab === "Reminders" && <View style={s.screen}><Text style={s.placesTitle}>Reminders</Text><Text style={s.placesSub}>A little nudge to revisit the places that matter.</Text><View style={s.empty}><Text style={s.emptyIcon}>♧</Text><Text style={s.emptyText}>No reminders yet</Text><Text style={s.reminderHint}>Reminder scheduling is coming soon.</Text></View></View>}
 
     {tab === "Profile" && <View style={s.screen}><Text style={s.placesTitle}>Profile</Text><Text style={s.placesSub}>Your Pinpoint account and preferences.</Text>
@@ -225,6 +247,7 @@ export default function App() {
     <View style={s.tabs}>
       <TabButton icon="⌂" label="Home" active={tab==="Home"} onPress={()=>setTab("Home")}/>
       <TabButton icon="◫" label="Places" active={tab==="Places"} onPress={()=>setTab("Places")}/>
+      <TabButton icon="⌖" label="Nearby" active={tab==="Nearby"} onPress={()=>setTab("Nearby")}/>
       <TabButton icon="♧" label="Reminders" active={tab==="Reminders"} onPress={()=>setTab("Reminders")}/>
       <TabButton icon="♙" label="Profile" active={tab==="Profile"} onPress={()=>setTab("Profile")}/>
     </View>
