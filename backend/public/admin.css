@@ -139,3 +139,14 @@ button,.nav-item,.text-action,.logout-button{ min-height:40px }
 .india-map-marker-dot{position:absolute;left:0;top:0;width:12px;height:12px;border-radius:50%;background:var(--pin-color,#d87955);border:2px solid #fff;box-shadow:0 1px 5px #25251f88;transform:translate(-50%,-50%)}
 .india-map-marker-label{position:absolute;left:10px;top:-10px;white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis;padding:3px 7px;border-radius:5px;background:#fffefaed;border:1px solid #dedbd1;box-shadow:0 1px 4px #25251f30;color:#30312d;font:600 11px/1.3 system-ui,sans-serif;pointer-events:none}
 .india-popup-category-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+
+/* Clickable category filters for the India map */
+.india-map-toolbar{align-items:flex-start}
+.india-map-category-filters{display:flex;align-items:center;gap:7px;flex:1;flex-wrap:wrap}
+.india-category-filter{display:inline-flex;align-items:center;gap:6px;border:1px solid #e4e1d8;border-radius:999px;background:#f3f1eb;color:#55574f;padding:7px 11px;font:600 11px/1.2 system-ui,sans-serif;cursor:pointer;white-space:nowrap}
+.india-category-filter>i{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.india-category-filter>span{font-size:10px;color:#85867e;background:#e7e5dd;border-radius:999px;padding:2px 5px}
+.india-category-filter:hover{border-color:#c7bfb2}
+.india-category-filter.active{background:#292b27;color:#fff;border-color:#292b27}
+.india-category-filter.active>span{background:#555850;color:#fff}
+@media(max-width:700px){.india-map-toolbar{flex-direction:column}.india-map-category-filters{width:100%}}
