@@ -85,18 +85,58 @@ async function navigate(page) {
   document.querySelectorAll(".nav-item").forEach(function (item) {
     item.classList.toggle("active", item.dataset.page === page);
   });
-  const titles = { overview: "Overview", users: "Users", locations: "Locations", categories: "Categories", offers: "Offers" };
+  const titles = { overview: "Overview", users: "Users", locations: "Locations", map: "India Map", categories: "Categories", offers: "Offers" };
   pageTitle.textContent = titles[page] || "Overview";
   content.innerHTML = '<div class="loading">Loading workspace…</div>';
   try {
     if (page === "overview") await renderOverview();
     if (page === "users") await renderUsers();
     if (page === "locations") await renderLocations();
+    if (page === "map") await renderIndiaMap();
     if (page === "categories") await renderCategories();
     if (page === "offers") await renderOffers();
   } catch (err) {
     content.innerHTML = '<div class="empty-state"><b>Could not load this section</b><p>' + escapeHtml(err.message) + '</p><button class="btn secondary" data-action="retry">Retry</button></div>';
   }
+}
+let indiaOverviewMap = null;
+async function renderIndiaMap() {
+  const result = await api("/admin/locations/map");
+  const locations = result.data || [];
+  const withCoordinates = locations.filter(function (item) {
+    const coords = item.coordinates && item.coordinates.coordinates;
+    return Array.isArray(coords) && coords.length === 2 && Number.isFinite(Number(coords[0])) && Number.isFinite(Number(coords[1]));
+  });
+  content.innerHTML =
+    '<div class="section-intro"><div><h2>Pinpoint locations across India</h2><p>Explore every saved location. Zoom, pan and select a pin to view its details.</p></div><span class="count-pill">' + withCoordinates.length + ' mapped · ' + locations.length + ' total</span></div>' +
+    '<div class="panel india-map-panel"><div class="india-map-toolbar"><span><i class="map-legend-public"></i> Public <i class="map-legend-private"></i> Private</span><button class="btn secondary" data-action="refresh-india-map">↻ Refresh pins</button></div><div id="indiaLocationsMap" class="india-locations-map"></div><p class="map-status">Showing locations with valid coordinates. Use + / − or your mouse wheel to zoom.</p></div>';
+  if (!window.L) {
+    document.getElementById("indiaLocationsMap").innerHTML = '<div class="map-load-error">Map library could not load. Refresh the page and try again.</div>';
+    return;
+  }
+  if (indiaOverviewMap) { indiaOverviewMap.remove(); indiaOverviewMap = null; }
+  indiaOverviewMap = window.L.map("indiaLocationsMap", { scrollWheelZoom: true }).setView([22.8, 79.0], 5);
+  window.L.maplibreGL({
+    style: "https://tiles.openfreemap.org/styles/liberty",
+    attributionControl: true
+  }).addTo(indiaOverviewMap);
+  const bounds = [];
+  withCoordinates.forEach(function (item) {
+    const coords = item.coordinates.coordinates;
+    const latitude = Number(coords[1]), longitude = Number(coords[0]);
+    const isPublic = item.isPublic === true;
+    const marker = window.L.circleMarker([latitude, longitude], {
+      radius: 7, color: isPublic ? "#287a55" : "#b66b45",
+      weight: 2, fillColor: isPublic ? "#42a875" : "#d99a70", fillOpacity: 0.9
+    }).addTo(indiaOverviewMap);
+    const owner = item.user && item.user.name ? item.user.name : "Unknown owner";
+    const popup = '<div class="india-map-popup"><b>' + escapeHtml(item.title || "Untitled place") + '</b><span>' + escapeHtml(item.category || "Other") + ' · ' + (isPublic ? "Public" : "Private") + '</span><small>' + escapeHtml(item.address || "No address provided") + '</small><small>Owner: ' + escapeHtml(owner) + '</small><small>' + latitude.toFixed(6) + ', ' + longitude.toFixed(6) + '</small></div>';
+    marker.bindPopup(popup);
+    bounds.push([latitude, longitude]);
+  });
+  if (bounds.length > 1) indiaOverviewMap.fitBounds(bounds, { padding: [28, 28], maxZoom: 10 });
+  else if (bounds.length === 1) indiaOverviewMap.setView(bounds[0], 13);
+  window.setTimeout(function () { if (indiaOverviewMap) indiaOverviewMap.invalidateSize(); }, 120);
 }
 function statCard(label, value, hint, icon) {
   return '<article class="stat-card"><div class="stat-top"><span>' + escapeHtml(label) + '</span><i>' + icon + '</i></div><strong>' + Number(value || 0).toLocaleString() + '</strong><small>' + escapeHtml(hint) + '</small></article>';
@@ -440,6 +480,7 @@ content.addEventListener("click", async function (event) {
   const button = event.target.closest("[data-action]");
   if (!button) return;
   if (button.dataset.action === "retry") return window.location.reload();
+  if (button.dataset.action === "refresh-india-map") return renderIndiaMap().catch(function (err) { showNotice(err.message, true); });
   const id = button.dataset.id;
   try {
     if (button.dataset.action === "import-google-maps") {
