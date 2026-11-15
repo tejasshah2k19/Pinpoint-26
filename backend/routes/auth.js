@@ -17,7 +17,8 @@ const FIFTEEN_MINUTES = 15 * 60 * 1000;
 // the account/IP failure budget.
 function accountIpKey(req) {
   const email = String(req.body && req.body.email || "").trim().toLowerCase();
-  const accountKey = crypto.createHash("sha256").update(email || "missing-account").digest("hex");
+  const accountIdentity = req.userId ? String(req.userId) : email;
+  const accountKey = crypto.createHash("sha256").update(accountIdentity || "missing-account").digest("hex");
   return accountKey + ":" + ipKeyGenerator(req.ip);
 }
 const passwordLoginIpLimiter = rateLimit({
@@ -219,7 +220,7 @@ router.get("/me", authenticate, async (req, res, next) => {
  
 // Mobile: authenticated self-deactivation. The account is soft-disabled so it
 // cannot sign in on any client; existing records are retained for recovery/audit.
-router.delete("/account", accountDeactivationIpLimiter, authenticate, async (req, res, next) => {
+router.delete("/account", accountDeactivationIpLimiter, authenticate, accountDeactivationLimiter, async (req, res, next) => {
   try {
     const user = await User.findById(req.userId);
     if (!user || user.isActive === false) {
