@@ -20,7 +20,7 @@ async function request(path, { method = "GET", token, body } = {}) {
 export const api = {
   register: (details) => request("/auth/register", { method: "POST", body: details }),
   login: (details) => request("/auth/login", { method: "POST", body: details }),
-  loginWithMpin: (mpin) => request("/auth/mpin-login", { method: "POST", body: { mpin } }),
+  loginWithMpin: (email, mpin) => request("/auth/mpin-login", { method: "POST", body: { email, mpin } }),
   setMpin: (token, details) => request("/auth/mpin", { method: "PUT", token, body: details }),
   me: (token) => request("/auth/me", { token }),
   getLocations: (token) => request("/locations", { token }),
