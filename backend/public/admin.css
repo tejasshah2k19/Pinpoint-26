@@ -150,3 +150,19 @@ button,.nav-item,.text-action,.logout-button{ min-height:40px }
 .india-category-filter.active{background:#292b27;color:#fff;border-color:#292b27}
 .india-category-filter.active>span{background:#555850;color:#fff}
 @media(max-width:700px){.india-map-toolbar{flex-direction:column}.india-map-category-filters{width:100%}}
+
+/* Category editor colour and icon picker */
+.category-editor-form{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(190px,.8fr);gap:16px;align-items:end}
+.category-editor-form>label{display:grid;gap:8px;color:#45463f;font-size:12px;font-weight:700}
+.category-color-control{display:flex;align-items:center;gap:10px;min-height:44px;padding:5px 10px;border:1px solid #e5e2d9;border-radius:11px;background:#fbfaf7}
+.category-color-control input[type=color]{width:48px;height:34px;padding:2px;border:0;background:transparent;cursor:pointer}
+.category-color-control output{font:600 12px/1.2 ui-monospace,monospace;color:#66685f}
+.category-icon-picker{grid-column:1/-1;border:1px solid #e7e4dc;border-radius:12px;padding:12px 14px;margin:0}
+.category-icon-picker legend{padding:0 5px;font-size:12px;font-weight:700;color:#45463f}
+.category-icon-options{display:flex;flex-wrap:wrap;gap:7px}
+.category-icon-option{width:42px;height:42px;border:1px solid #e6e3da;border-radius:10px;background:#f7f6f1;font-size:21px;cursor:pointer}
+.category-icon-option:hover{border-color:#d97855}
+.category-icon-option.selected{border:2px solid #d97855;background:#fbe9e1;box-shadow:0 0 0 2px #d9785522}
+.category-editor-actions{grid-column:1/-1;display:flex;gap:9px;flex-wrap:wrap}
+.category-table-icon{display:inline-flex;align-items:center;justify-content:center;width:29px;height:29px;border-radius:9px;color:#fff;font-size:16px;vertical-align:middle}
+@media(max-width:700px){.category-editor-form{grid-template-columns:1fr}.category-icon-picker,.category-editor-actions{grid-column:1}.category-icon-option{width:40px;height:40px}}
