@@ -20,7 +20,7 @@ app.use(helmet({
       workerSrc: ["'self'", "blob:"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com"],
       imgSrc: ["'self'", "data:", "blob:", "https://*.tile.openstreetmap.org", "https://unpkg.com"],
-      connectSrc: ["'self'", "https://tiles.openfreemap.org"],
+      connectSrc: ["'self'", "https://tiles.openfreemap.org", "https://photon.komoot.io"],
       fontSrc: ["'self'", "data:"]
     }
   }
@@ -38,6 +38,15 @@ app.use(rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false
 }));
+
+// Installable Pinpoint web app (PWA), served alongside the native Expo app.
+app.get("/app", (req, res) => res.redirect(301, "/app/"));
+app.get("/app/", (req, res) => res.sendFile(path.join(__dirname, "public", "app.html")));
+app.get("/app/sw.js", (req, res) => {
+  res.setHeader("Service-Worker-Allowed", "/app/");
+  res.sendFile(path.join(__dirname, "public", "sw.js"));
+});
+app.use("/app-assets", express.static(path.join(__dirname, "public"), { index: false, maxAge: "1h" }));
 
 // Public PinPoint26 introduction page.
 app.get("/", (req, res) => {
