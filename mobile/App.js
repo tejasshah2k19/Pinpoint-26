@@ -67,6 +67,7 @@ export default function App() {
   const [auth,setAuth] = useState({name:"",email:"",password:""});
   const [loginMethod,setLoginMethod] = useState("password");
   const [loginMpin,setLoginMpin] = useState("");
+  const [loginMpinEmail,setLoginMpinEmail] = useState("");
   const [mpinForm,setMpinForm] = useState({mpin:"",confirmMpin:"",currentPassword:""});
   const [showMpinForm,setShowMpinForm] = useState(false);
   const [tab,setTab] = useState("Home");
@@ -154,9 +155,9 @@ export default function App() {
     if (!/^\d{6}$/.test(loginMpin)) return Alert.alert("Invalid MPIN","Enter your 6-digit MPIN.");
     setBusy(true);
     try {
-      const result = await api.loginWithMpin(loginMpin);
+      const result = await api.loginWithMpin(loginMpinEmail.trim(),loginMpin);
       await AsyncStorage.setItem("pinpoint_session_token", result.token);
-      setToken(result.token); setUser(result.user); setTab("Home"); setLoginMpin("");
+      setToken(result.token); setUser(result.user); setTab("Home"); setLoginMpin(""); setLoginMpinEmail("");
     } catch(e) { Alert.alert("MPIN sign-in failed",e.message); }
     finally { setBusy(false); }
   }
@@ -314,6 +315,8 @@ export default function App() {
           <Field placeholder="At least 8 characters" value={auth.password} onChangeText={v=>setAuth({...auth,password:v})} secureTextEntry/>
           <Button title={busy ? "Please wait..." : authMode === "login" ? "Sign in" : "Create account"} onPress={submitAuth} disabled={busy}/>
         </> : <>
+          <Text style={s.label}>Email address</Text>
+          <Field placeholder="you@example.com" value={loginMpinEmail} onChangeText={setLoginMpinEmail} keyboardType="email-address"/>
           <Text style={s.label}>6-digit MPIN</Text>
           <Field placeholder="Enter your MPIN" value={loginMpin} onChangeText={v=>setLoginMpin(v.replace(/\D/g,"").slice(0,6))} keyboardType="numeric" secureTextEntry/>
           <Button title={busy ? "Please wait..." : "Sign in with MPIN"} onPress={submitMpinLogin} disabled={busy}/>
