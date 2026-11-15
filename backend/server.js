@@ -41,6 +41,10 @@ app.get("/", (req, res) => {
   res.json({ success: true, message: "Pinpoint API is running", version: "1.0.0" });
 });
 
+app.get("/delete-account", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "delete-account.html"));
+});
+
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
