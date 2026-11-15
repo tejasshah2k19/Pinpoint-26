@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true, maxlength: 254 },
   passwordHash: { type: String, required: true, select: false },
   mpinHash: { type: String, default: null, select: false },
-  mpinLookup: { type: String, default: null, unique: true, sparse: true, select: false },
+  mpinLookup: { type: String, unique: true, sparse: true, select: false },
   role: { type: String, enum: ["user", "admin"], default: "user", index: true },
   isActive: { type: Boolean, default: true, index: true },
   accountDeactivatedAt: { type: Date, default: null }
