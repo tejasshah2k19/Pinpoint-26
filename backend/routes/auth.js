@@ -22,7 +22,7 @@ async function applyConfiguredAdmin(user) {
 }
 
 function publicUser(user) {
-  return { id: user._id, name: user.name, email: user.email, role: user.role || "user", isActive: user.isActive !== false };
+  return { id: user._id, name: user.name, email: user.email, role: user.role || "user", isActive: user.isActive !== false, hasMpin: Boolean(user.mpinLookup) };
 }
 
 function mpinLookup(mpin) {
