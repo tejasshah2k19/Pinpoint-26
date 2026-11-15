@@ -82,6 +82,7 @@ export default function App() {
   const [categoryDropdownOpen,setCategoryDropdownOpen] = useState(false);
   const [customCategoryName,setCustomCategoryName] = useState("");
   const [position,setPosition] = useState(null);
+  const [mapInteracting,setMapInteracting] = useState(false);
   const mapRef = useRef(null);
   function selectPosition(coordinate) {
     if (!coordinate || !Number.isFinite(coordinate.latitude) || !Number.isFinite(coordinate.longitude)) return;
@@ -359,7 +360,7 @@ export default function App() {
     </View>}
 
     {tab === "Capture" && <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView keyboardShouldPersistTaps="handled">
+      <ScrollView keyboardShouldPersistTaps="handled" scrollEnabled={!mapInteracting}>
         <TouchableOpacity onPress={()=>setTab("Home")}><Text style={s.back}>‹  Back</Text></TouchableOpacity>
         <Text style={s.placesTitle}>{editingId ? "Edit place" : "Save a place"}</Text><Text style={s.placesSub}>Keep the details you want to remember.</Text>
         <Text style={s.label}>Place name</Text><Field placeholder="e.g. Hidden Gem Cafe" value={form.title} onChangeText={v=>setForm({...form,title:v})}/>
@@ -391,7 +392,7 @@ export default function App() {
         </View>
         <Text style={s.privacyBody}>{form.isPublic ? "Anyone using Pinpoint can discover this place in Nearby. Your account details are not displayed as part of the place card." : "Only you can see this place. It will not appear in other users’ Nearby results."}</Text>
         <Text style={s.label}>Full address (optional)</Text><Field placeholder="Building, street, area, city, state, PIN code" value={form.address} onChangeText={v=>setForm({...form,address:v})} multiline/>
-        <Button title={busy ? "Finding address..." : "Find coordinates from address"} icon="⌖" onPress={geocodeAddress} disabled={busy}/>
+        <Button title={busy ? "Finding address..." : "Find location from address"} icon="⌖" onPress={geocodeAddress} disabled={busy}/>
         <Text style={s.label}>Select the exact point on the map</Text>
         <Text style={s.mapHint}>Tap anywhere on the map to place the pin. You can also drag the pin to fine-tune its position.</Text>
         <View style={s.mapFrame}>
@@ -405,6 +406,8 @@ export default function App() {
               longitudeDelta: position ? 0.012 : 0.08
             }}
             onPress={event=>selectPosition(event.nativeEvent.coordinate)}
+            onTouchStart={()=>setMapInteracting(true)}
+            onTouchEnd={()=>setMapInteracting(false)}
             showsCompass
             showsScale
             toolbarEnabled
@@ -426,7 +429,6 @@ export default function App() {
         <Text style={s.locationStatus}>{position ? "Selected pin: "+position.latitude.toFixed(6)+", "+position.longitude.toFixed(6) : "No pin selected yet."}</Text>
         <View style={s.mapButtons}>
           <View style={s.mapButtonCell}><Button title="Use current GPS" icon="◎" onPress={locateMe}/></View>
-          <View style={s.mapButtonCell}><Button title="Find by address" icon="⌖" onPress={geocodeAddress} disabled={busy}/></View>
         </View>
         <Button title={busy ? "Saving..." : editingId ? "Update place" : "Save place"} onPress={savePlace} disabled={busy}/>
       </ScrollView>
