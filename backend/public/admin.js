@@ -104,7 +104,7 @@ let indiaMapMarkers = [];
 async function renderIndiaMap() {
   const result = await api("/admin/locations/map");
   const locations = result.data || [];
-  const categoryColors = new Map((result.categories || []).filter(function (category) { return category.name && category.color; }).map(function (category) { return [String(category.name).trim().toLowerCase(), category.color]; }));
+  const categoryDetails = new Map((result.categories || []).filter(function (category) { return category.name; }).map(function (category) { return [String(category.name).trim().toLowerCase(), { color: category.color, icon: category.icon }]; }));
   const withCoordinates = locations.filter(function (item) {
     const coords = item.coordinates && item.coordinates.coordinates;
     return Array.isArray(coords) && coords.length === 2 && Number.isFinite(Number(coords[0])) && Number.isFinite(Number(coords[1]));
@@ -134,10 +134,12 @@ async function renderIndiaMap() {
     const latitude = Number(coords[1]), longitude = Number(coords[0]);
     const isPublic = item.isPublic === true;
     const categoryName = String(item.category || "Other");
-    const categoryColor = categoryColors.get(categoryName.trim().toLowerCase()) || "#d87955";
+    const categoryMeta = categoryDetails.get(categoryName.trim().toLowerCase()) || {};
+    const categoryColor = /^#[0-9a-f]{6}$/i.test(categoryMeta.color || "") ? categoryMeta.color : "#d87955";
+    const categoryIcon = categoryMeta.icon || "📍";
     const markerIcon = window.L.divIcon({
       className: "india-map-marker-wrap",
-      html: '<span class="india-map-marker-dot" style="--pin-color:' + escapeHtml(categoryColor) + '"></span><span class="india-map-marker-label">' + escapeHtml(item.title || "Untitled place") + '</span>',
+      html: '<span class="india-map-marker-dot" style="--pin-color:' + escapeHtml(categoryColor) + '">' + escapeHtml(categoryIcon) + '</span><span class="india-map-marker-label">' + escapeHtml(item.title || "Untitled place") + '</span>',
       iconSize: [1, 1],
       iconAnchor: [5, 5]
     });
