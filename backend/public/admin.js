@@ -108,9 +108,14 @@ async function renderIndiaMap() {
     const coords = item.coordinates && item.coordinates.coordinates;
     return Array.isArray(coords) && coords.length === 2 && Number.isFinite(Number(coords[0])) && Number.isFinite(Number(coords[1]));
   });
+  const mapCategories = Array.from(new Set(withCoordinates.map(function (item) { return String(item.category || "Other").trim(); }))).sort(function (a, b) { return a.localeCompare(b); });
+  const colorForCategory = function (name) {
+    const value = categoryColors.get(String(name).trim().toLowerCase()) || "#d87955";
+    return /^#[0-9a-f]{6}$/i.test(value) ? value : "#d87955";
+  };
   content.innerHTML =
     '<div class="section-intro"><div><h2>Pinpoint locations across India</h2><p>Explore every saved location. Zoom, pan and select a pin to view its details.</p></div><span class="count-pill">' + withCoordinates.length + ' mapped · ' + locations.length + ' total</span></div>' +
-    '<div class="panel india-map-panel"><div class="india-map-toolbar"><span><i class="map-legend-public"></i> Public <i class="map-legend-private"></i> Private</span><button class="btn secondary" data-action="refresh-india-map">↻ Refresh pins</button></div><div id="indiaLocationsMap" class="india-locations-map"></div><p class="map-status">Showing locations with valid coordinates. Use + / − or your mouse wheel to zoom.</p></div>';
+    '<div class="panel india-map-panel"><div class="india-map-toolbar"><div class="india-map-category-filters"><button class="india-category-filter active" data-action="filter-india-category" data-category="__all">All <span>' + withCoordinates.length + '</span></button>' + mapCategories.map(function (name) { const count = withCoordinates.filter(function (item) { return String(item.category || "Other").trim() === name; }).length; return '<button class="india-category-filter" data-action="filter-india-category" data-category="' + escapeHtml(name) + '"><i style="background:' + colorForCategory(name) + '"></i>' + escapeHtml(name) + ' <span>' + count + '</span></button>'; }).join("") + '</div><button class="btn secondary" data-action="refresh-india-map">↻ Refresh pins</button></div><div id="indiaLocationsMap" class="india-locations-map"></div><p class="map-status" id="indiaMapStatus">Showing all categories. Select a category to filter the map.</p></div>';
   if (!window.L) {
     document.getElementById("indiaLocationsMap").innerHTML = '<div class="map-load-error">Map library could not load. Refresh the page and try again.</div>';
     return;
@@ -122,6 +127,7 @@ async function renderIndiaMap() {
     attributionControl: true
   }).addTo(indiaOverviewMap);
   const bounds = [];
+  const indiaMapMarkers = [];
   withCoordinates.forEach(function (item) {
     const coords = item.coordinates.coordinates;
     const latitude = Number(coords[1]), longitude = Number(coords[0]);
@@ -138,6 +144,8 @@ async function renderIndiaMap() {
     const owner = item.user && item.user.name ? item.user.name : "Unknown owner";
     const popup = '<div class="india-map-popup"><b>' + escapeHtml(item.title || "Untitled place") + '</b><span><i class="india-popup-category-dot" style="background:' + escapeHtml(categoryColor) + '"></i>' + escapeHtml(categoryName) + ' · ' + (isPublic ? "Public" : "Private") + '</span><small>' + escapeHtml(item.address || "No address provided") + '</small><small>Owner: ' + escapeHtml(owner) + '</small><small>' + latitude.toFixed(6) + ', ' + longitude.toFixed(6) + '</small></div>';
     marker.bindPopup(popup);
+    marker._pinpointCategory = categoryName.trim();
+    indiaMapMarkers.push(marker);
     bounds.push([latitude, longitude]);
   });
   if (bounds.length > 1) indiaOverviewMap.fitBounds(bounds, { padding: [28, 28], maxZoom: 10 });
@@ -487,6 +495,19 @@ content.addEventListener("click", async function (event) {
   if (!button) return;
   if (button.dataset.action === "retry") return window.location.reload();
   if (button.dataset.action === "refresh-india-map") return renderIndiaMap().catch(function (err) { showNotice(err.message, true); });
+  if (button.dataset.action === "filter-india-category") {
+    const selected = button.dataset.category;
+    content.querySelectorAll("[data-action=filter-india-category]").forEach(function (chip) { chip.classList.toggle("active", chip === button); });
+    let visible = 0;
+    indiaMapMarkers.forEach(function (marker) {
+      const show = selected === "__all" || marker._pinpointCategory === selected;
+      if (show) { if (!indiaOverviewMap.hasLayer(marker)) marker.addTo(indiaOverviewMap); visible++; }
+      else if (indiaOverviewMap.hasLayer(marker)) indiaOverviewMap.removeLayer(marker);
+    });
+    const status = document.getElementById("indiaMapStatus");
+    if (status) status.textContent = (selected === "__all" ? "Showing all categories" : "Showing " + selected) + " · " + visible + " locations. Select All to clear the filter.";
+    return;
+  }
   const id = button.dataset.id;
   try {
     if (button.dataset.action === "import-google-maps") {
