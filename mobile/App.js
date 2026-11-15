@@ -71,6 +71,7 @@ export default function App() {
   const [nearbyRadius,setNearbyRadius] = useState(5000);
   const [nearbyCustomKm,setNearbyCustomKm] = useState("");
   const [nearbyLoading,setNearbyLoading] = useState(false);
+  const [nearbyCategory,setNearbyCategory] = useState("All");
   const [mapCategory,setMapCategory] = useState("All");
   const [mapRefreshing,setMapRefreshing] = useState(false);
   const mapOverviewRef = useRef(null);
@@ -505,12 +506,22 @@ export default function App() {
       </View>
       <View style={s.nearbyResultsHeader}>
         <Text style={s.nearbySectionTitle}>Results</Text>
-        <Text style={s.nearbyResultCount}>{nearbyLocations.length} places</Text>
+        <Text style={s.nearbyResultCount}>{nearbyLocations.filter(item=>nearbyCategory==="All" || String(item.category || "Other").toLowerCase()===nearbyCategory.toLowerCase()).length} places</Text>
       </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.nearbyCategoryScroll} contentContainerStyle={s.nearbyCategoryRow}>
+        {["All",...Array.from(new Set(nearbyLocations.map(item=>String(item.category || "Other").trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b))].map(name=>{
+          const selected=nearbyCategory.toLowerCase()===name.toLowerCase();
+          const meta=categories.find(item=>String(item.name).toLowerCase()===name.toLowerCase()) || {};
+          return <TouchableOpacity key={name} onPress={()=>setNearbyCategory(name)} style={[s.nearbyRadiusChip,selected && s.nearbyRadiusChipActive]}>
+            <Text style={[s.nearbyRadiusText,selected && s.nearbyRadiusTextActive]}>{name==="All" ? "All categories" : (meta.icon ? meta.icon+" " : "")+name}</Text>
+          </TouchableOpacity>;
+        })}
+      </ScrollView>
       <ScrollView style={{flex:1}} contentContainerStyle={{paddingBottom:18}} showsVerticalScrollIndicator={false}>
         {nearbyLoading && <ActivityIndicator color={C.coral} style={{marginTop:20}}/>}
         {!nearbyLoading && nearbyLocations.length===0 && <View style={s.empty}><Text style={s.emptyIcon}>⌖</Text><Text style={s.emptyText}>No nearby places loaded</Text><Text style={s.reminderHint}>Choose a radius and tap Find nearby places.</Text></View>}
-        {nearbyLocations.map(item=><View key={item._id} style={s.nearbyPlaceCard}>
+        {!nearbyLoading && nearbyLocations.length>0 && nearbyLocations.filter(item=>nearbyCategory==="All" || String(item.category || "Other").toLowerCase()===nearbyCategory.toLowerCase()).length===0 && <View style={s.empty}><Text style={s.emptyIcon}>⌕</Text><Text style={s.emptyText}>No places in this category</Text><Text style={s.reminderHint}>Choose another category to see more results.</Text></View>}
+        {nearbyLocations.filter(item=>nearbyCategory==="All" || String(item.category || "Other").toLowerCase()===nearbyCategory.toLowerCase()).map(item=><View key={item._id} style={s.nearbyPlaceCard}>
           <View style={{flex:1}}>
             <Text style={s.nearbyPlaceTitle}>{item.title || "Saved place"}</Text>
             <Text style={s.nearbyPlaceCategory}>{item.category || "Other"}</Text>
@@ -613,6 +624,8 @@ const s = StyleSheet.create({
  tabButton:{flex:1,alignItems:"center",justifyContent:"center"},tabIcon:{color:"#96978F",fontSize:22,marginBottom:2},tabLabel:{color:"#96978F",fontSize:10},active:{color:C.coral,fontWeight:"800"},
  back:{color:"#A9674F",fontWeight:"700",marginBottom:17,fontSize:14},locationStatus:{color:C.muted,fontSize:11,textAlign:"center",marginVertical:8},
  nearbyRadiusCard:{backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:16,padding:15,marginTop:16,marginBottom:16},
+ nearbyCategoryScroll:{maxHeight:46,flexGrow:0,marginBottom:10},
+ nearbyCategoryRow:{alignItems:"center",paddingRight:8},
  nearbySectionTitle:{fontSize:14,fontWeight:"800",color:C.ink},
  nearbyRadiusOptions:{flexDirection:"row",gap:9,marginTop:12,marginBottom:8},
  nearbyRadiusChip:{paddingHorizontal:18,paddingVertical:10,borderRadius:20,backgroundColor:"#EEEDE6"},
