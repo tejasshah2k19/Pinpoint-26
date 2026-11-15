@@ -229,13 +229,24 @@ export default function App() {
     if(!address) return Alert.alert("Enter an address","Add a full address before finding its coordinates.");
     setBusy(true);
     try {
-      const results = await Location.geocodeAsync(address);
-      if(!results || !results.length) return Alert.alert("Address not found","Please check the address and include area, city, state and PIN code.");
-      const match = results[0];
-      selectPosition({latitude:match.latitude,longitude:match.longitude});
-      Alert.alert("Address located","Coordinates found. Review the address and save your place.");
+      const response = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(address)}&limit=5`, {
+        headers: { Accept: "application/json" }
+      });
+      if(!response.ok) throw new Error("Address search service is temporarily unavailable.");
+      const data = await response.json();
+      const feature = data && data.features && data.features[0];
+      const coordinates = feature && feature.geometry && feature.geometry.coordinates;
+      if(!coordinates || coordinates.length < 2) {
+        return Alert.alert("Address not found","Try adding the area, city, state and PIN code, then search again.");
+      }
+      const [longitude, latitude] = coordinates;
+      if(!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        return Alert.alert("Address not found","We couldn't get valid coordinates for this address. Please try a more complete address.");
+      }
+      selectPosition({ latitude, longitude });
+      Alert.alert("Address located","The map has moved to the matching location. Drag the pin to fine-tune it.");
     } catch(e) {
-      Alert.alert("Could not find address","Please check your internet connection or try a more complete address.");
+      Alert.alert("Address search failed",e.message || "Check your internet connection and try again.");
     } finally { setBusy(false); }
   }
   async function savePlace() {
