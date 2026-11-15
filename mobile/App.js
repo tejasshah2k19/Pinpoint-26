@@ -482,33 +482,6 @@ export default function App() {
       </View>
     </View>}
 
-    {false && <View style={s.screen}>
-      <Text style={s.placesTitle}>Nearby places</Text><Text style={s.placesSub}>Discover places around your current location.</Text>
-      <View style={s.categoryChoices}>{[{label:"1 km",value:1000},{label:"5 km",value:5000},{label:"10 km",value:10000},{label:"25 km",value:25000}].map(r=><TouchableOpacity key={r.value} onPress={()=>setNearbyRadius(r.value)} style={[s.categoryChoice,nearbyRadius===r.value && s.categoryChoiceActive]}><Text style={[s.categoryChoiceText,nearbyRadius===r.value && s.categoryChoiceTextActive]}>{r.label}</Text></TouchableOpacity>)}</View>
-      <Text style={s.label}>Custom distance (km)</Text>
-      <View style={s.customRadiusRow}>
-        <TextInput
-          value={nearbyCustomKm}
-          onChangeText={value=>setNearbyCustomKm(value.replace(/[^0-9.]/g,""))}
-          placeholder="Enter any distance, e.g. 60 or 70"
-          placeholderTextColor={C.muted}
-          keyboardType="decimal-pad"
-          style={s.customRadiusInput}
-        />
-        <TouchableOpacity style={s.customRadiusApply} onPress={()=>{
-          const km=Number(nearbyCustomKm);
-          if(!nearbyCustomKm.trim() || !Number.isFinite(km) || km<1 || km>1000) return Alert.alert("Invalid distance","Enter a distance from 1 to 1,000 km.");
-          setNearbyRadius(Math.round(km*1000));
-        }}>
-          <Text style={s.customRadiusApplyText}>Apply</Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={s.locationStatus}>Choose 1–25 km above or enter a custom distance up to 1,000 km.</Text>
-      <Button title={nearbyLoading ? "Finding nearby places..." : "⌖  Find places near me"} onPress={loadNearby} disabled={nearbyLoading}/>
-      <Text style={s.resultCount}>{nearbyLocations.length} {nearbyLocations.length===1 ? "place" : "places"} within {nearbyRadius/1000} km</Text>
-      {nearbyLoading ? <ActivityIndicator color={C.coral} style={{marginTop:24}}/> : <FlatList data={nearbyLocations} keyExtractor={item=>item._id} renderItem={({item})=><PlaceCard item={item} showActions={false}/>} ListEmptyComponent={<View style={s.empty}><Text style={s.emptyIcon}>⌖</Text><Text style={s.emptyText}>Tap “Find places near me” to discover nearby saved places.</Text></View>} refreshing={nearbyLoading} onRefresh={loadNearby}/>}
-    </View>}
-
     {tab === "Reminders" && <View style={s.screen}><Text style={s.placesTitle}>Reminders</Text><Text style={s.placesSub}>A little nudge to revisit the places that matter.</Text><View style={s.empty}><Text style={s.emptyIcon}>♧</Text><Text style={s.emptyText}>No reminders yet</Text><Text style={s.reminderHint}>Reminder scheduling is coming soon.</Text></View></View>}
 
     {tab === "Profile" && <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={8}><ScrollView contentContainerStyle={{paddingBottom:32}} keyboardShouldPersistTaps="handled"><Text style={s.placesTitle}>Profile</Text><Text style={s.placesSub}>Your Pinpoint account and preferences.</Text>
