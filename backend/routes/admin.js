@@ -171,11 +171,21 @@ router.patch("/users/:id", async (req, res, next) => {
 
 router.get("/locations/map", async (req, res, next) => {
   try {
-    const locations = await Location.find({
-      "coordinates.coordinates.0": { $exists: true },
-      "coordinates.coordinates.1": { $exists: true }
-    }).select("title category address coordinates isPublic user").populate("user", "name").limit(20000).lean();
-    return res.json({ success: true, data: locations });
+    const [locations, categories] = await Promise.all([
+      Location.find({
+        "coordinates.coordinates.0": { $exists: true },
+        "coordinates.coordinates.1": { $exists: true }
+      }).select("title category address coordinates isPublic user").populate("user", "name").limit(20000).lean(),
+      Category.find().select("name color").sort({ name: 1 }).lean()
+    ]);
+    const seenCategories = new Set();
+    const categoryData = categories.filter((category) => {
+      const key = String(category.name || "").trim().toLowerCase();
+      if (!key || seenCategories.has(key)) return false;
+      seenCategories.add(key);
+      return true;
+    });
+    return res.json({ success: true, data: locations, categories: categoryData });
   } catch (error) { return next(error); }
 });
 
