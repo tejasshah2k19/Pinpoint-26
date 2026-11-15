@@ -133,3 +133,9 @@ button,.nav-item,.text-action,.logout-button{ min-height:40px }
 .india-map-popup span{font-weight:700;color:#8b654e}
 .india-map-popup small{color:#73756d}
 @media(max-width:700px){.india-locations-map{height:65vh;min-height:380px}.india-map-toolbar{align-items:flex-start;flex-wrap:wrap}}
+
+/* Category-coloured map pins with always-visible place labels */
+.india-map-marker-wrap{background:transparent;border:0;overflow:visible}
+.india-map-marker-dot{position:absolute;left:0;top:0;width:12px;height:12px;border-radius:50%;background:var(--pin-color,#d87955);border:2px solid #fff;box-shadow:0 1px 5px #25251f88;transform:translate(-50%,-50%)}
+.india-map-marker-label{position:absolute;left:10px;top:-10px;white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis;padding:3px 7px;border-radius:5px;background:#fffefaed;border:1px solid #dedbd1;box-shadow:0 1px 4px #25251f30;color:#30312d;font:600 11px/1.3 system-ui,sans-serif;pointer-events:none}
+.india-popup-category-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
