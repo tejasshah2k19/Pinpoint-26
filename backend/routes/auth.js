@@ -45,10 +45,10 @@ router.post("/mpin-login", mpinLoginLimiter, async (req, res, next) => {
   try {
     const email = String(req.body.email || "").trim().toLowerCase();
     const mpin = String(req.body.mpin || "");
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ success: false, message: "Enter the email address linked to your account." });
     }
-    if (!/^\\d{6}$/.test(mpin)) return res.status(400).json({ success: false, message: "Enter your 6-digit MPIN." });
+    if (!/^\d{6}$/.test(mpin)) return res.status(400).json({ success: false, message: "Enter your 6-digit MPIN." });
 
     const user = await User.findOne({ email }).select("+mpinHash +mpinLookup");
     if (!user || !user.mpinHash || user.isActive === false) {
