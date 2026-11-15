@@ -21,5 +21,5 @@ $("nearby").onclick=()=>{if(!navigator.geolocation)return alert("Location is not
 $("signOut").onclick=()=>{token="";user=null;localStorage.removeItem("pinpoint_session_token");workspace.classList.add("hidden");authPanel.classList.remove("hidden");$("password").value=""};
 (async()=>{const saved=localStorage.getItem("pinpoint_session_token");if(saved){try{token=saved;const d=await request("/auth/me");signedIn({token:saved,user:d.user})}catch(e){localStorage.removeItem("pinpoint_session_token");token=""}}})();
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installPrompt=e;$("install").classList.remove("hidden")});$("install").onclick=async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$("install").classList.add("hidden")};
-if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("/app-assets/sw.js",{scope:"/app/"}).catch(()=>{}));
+if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("/app/sw.js",{scope:"/app/"}).catch(()=>{}));
 })();
