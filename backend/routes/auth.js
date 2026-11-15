@@ -34,7 +34,7 @@ function mpinLookup(mpin) {
 router.post("/mpin-login", async (req, res, next) => {
   try {
     const mpin = String(req.body.mpin || "");
-    if (!/^\\d{6}$/.test(mpin)) return res.status(400).json({ success: false, message: "Enter your 6-digit MPIN." });
+    if (!/^\d{6}$/.test(mpin)) return res.status(400).json({ success: false, message: "Enter your 6-digit MPIN." });
     const user = await User.findOne({ mpinLookup: mpinLookup(mpin) }).select("+mpinHash +mpinLookup");
     if (!user || !user.mpinHash || !(await bcrypt.compare(mpin, user.mpinHash))) {
       return res.status(401).json({ success: false, message: "Invalid MPIN." });
@@ -51,7 +51,7 @@ router.put("/mpin", authenticate, async (req, res, next) => {
     const mpin = String(req.body.mpin || "");
     const confirmMpin = String(req.body.confirmMpin || "");
     const currentPassword = String(req.body.currentPassword || "");
-    if (!/^\\d{6}$/.test(mpin)) return res.status(400).json({ success: false, message: "MPIN must contain exactly 6 digits." });
+    if (!/^\d{6}$/.test(mpin)) return res.status(400).json({ success: false, message: "MPIN must contain exactly 6 digits." });
     if (mpin !== confirmMpin) return res.status(400).json({ success: false, message: "MPIN and confirmation do not match." });
     if (!currentPassword) return res.status(400).json({ success: false, message: "Enter your current account password to continue." });
     const user = await User.findById(req.userId).select("+passwordHash +mpinHash +mpinLookup");
