@@ -176,7 +176,7 @@ router.get("/locations/map", async (req, res, next) => {
         "coordinates.coordinates.0": { $exists: true },
         "coordinates.coordinates.1": { $exists: true }
       }).select("title category address coordinates isPublic user").populate("user", "name").limit(20000).lean(),
-      Category.find().select("name color").sort({ name: 1 }).lean()
+      Category.find().select("name color icon").sort({ name: 1 }).lean()
     ]);
     const seenCategories = new Set();
     const categoryData = categories.filter((category) => {
