@@ -1,0 +1,1 @@
+{"id":"/app/","name":"Pinpoint","short_name":"Pinpoint","description":"Save, discover and navigate places.","start_url":"/app/","scope":"/app/","display":"standalone","background_color":"#fafaf5","theme_color":"#d97855","icons":[{"src":"/app-assets/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
