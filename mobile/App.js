@@ -249,7 +249,8 @@ export default function App() {
       const picked = await ImagePicker.launchImageLibraryAsync({mediaTypes:["images"],allowsEditing:false,quality:1});
       if (picked.canceled || !picked.assets || !picked.assets[0]) return;
       setOcrBusy(true);
-      const result = await TextRecognition.recognize(picked.assets[0].uri);
+      const timeout = new Promise((_,reject)=>setTimeout(()=>reject(new Error("Text reading is taking too long. This mobile OCR supports English text best; for Gujarati screenshots, use the Pinpoint web app's Gujarati OCR or crop the English address text.")),25000));
+      const result = await Promise.race([TextRecognition.recognize(picked.assets[0].uri),timeout]);
       const text = String(result.text || "").trim();
       if (!text) return Alert.alert("No text found","Try a clearer screenshot where the place name or address is visible.");
       setOcrText(text);
