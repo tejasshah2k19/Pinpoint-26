@@ -100,6 +100,7 @@ async function navigate(page) {
   }
 }
 let indiaOverviewMap = null;
+let indiaMapMarkers = [];
 async function renderIndiaMap() {
   const result = await api("/admin/locations/map");
   const locations = result.data || [];
@@ -127,7 +128,7 @@ async function renderIndiaMap() {
     attributionControl: true
   }).addTo(indiaOverviewMap);
   const bounds = [];
-  const indiaMapMarkers = [];
+  indiaMapMarkers = [];
   withCoordinates.forEach(function (item) {
     const coords = item.coordinates.coordinates;
     const latitude = Number(coords[1]), longitude = Number(coords[0]);
