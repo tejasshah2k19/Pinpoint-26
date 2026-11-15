@@ -272,8 +272,7 @@ export default function App() {
       <ScrollView contentContainerStyle={s.authContent} keyboardShouldPersistTaps="handled">
         <View style={s.brandMark}><Text style={s.brandMarkText}>➤</Text></View>
         <Text style={s.brandWord}>PINPOINT</Text>
-        <Text style={s.authTitle}>Your places,{"
-"}remembered.</Text>
+        <Text style={s.authTitle}>Your places,{"\\n"}remembered.</Text>
         <Text style={s.authSub}>Capture the spots worth coming back to, with exact GPS coordinates.</Text>
         {authMode === "register" && <View><Text style={s.label}>Your name</Text><Field placeholder="Your name" value={auth.name} onChangeText={v=>setAuth({...auth,name:v})}/></View>}
         <Text style={s.label}>Email address</Text>
