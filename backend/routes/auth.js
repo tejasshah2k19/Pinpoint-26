@@ -5,16 +5,58 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const authenticate = require("../middleware/auth");
 const rateLimit = require("express-rate-limit");
+const { ipKeyGenerator } = require("express-rate-limit");
 
 const router = express.Router();
 
-// Temporary lockout: no more than 5 MPIN attempts from one IP per 15 minutes.
-const mpinLoginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+const FIFTEEN_MINUTES = 15 * 60 * 1000;
+
+// Login protection is layered: a broad per-IP ceiling plus a per-account-and-IP
+// ceiling. The account key is never used alone, so an attacker cannot lock a
+// victim out from another network. Successful password logins do not consume
+// the account/IP failure budget.
+function accountIpKey(req) {
+  const email = String(req.body && req.body.email || "").trim().toLowerCase();
+  const accountKey = crypto.createHash("sha256").update(email || "missing-account").digest("hex");
+  return accountKey + ":" + ipKeyGenerator(req.ip);
+}
+const passwordLoginIpLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES,
+  limit: 30,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { success: false, message: "Too many sign-in attempts from this network. Please try again in 15 minutes." }
+});
+const passwordLoginAccountLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES,
+  limit: 8,
+  keyGenerator: accountIpKey,
+  skipSuccessfulRequests: true,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { success: false, message: "Too many unsuccessful sign-in attempts for this account from this network. Please wait 15 minutes or try again from a trusted network." }
+});
+const registrationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
   limit: 5,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: { success: false, message: "Too many MPIN attempts. Please try again in 15 minutes." }
+  message: { success: false, message: "Too many account creation attempts. Please try again in an hour." }
+});
+const accountDeactivationIpLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { success: false, message: "Too many account deactivation attempts. Please try again in an hour." }
+});
+const accountDeactivationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  keyGenerator: accountIpKey,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { success: false, message: "Too many deactivation attempts for this account from this network. Please try again in an hour." }
 });
 
 function createToken(userId) {
@@ -109,7 +151,7 @@ router.put("/mpin", authenticate, async (req, res, next) => {
   }
 });
 
-router.post("/register", async (req, res, next) => {
+router.post("/register", registrationLimiter, async (req, res, next) => {
   try {
     const name = String(req.body.name || "").trim();
     const email = String(req.body.email || "").trim().toLowerCase();
@@ -140,7 +182,7 @@ router.post("/register", async (req, res, next) => {
   }
 });
 
-router.post("/login", async (req, res, next) => {
+router.post("/login", passwordLoginIpLimiter, passwordLoginAccountLimiter, async (req, res, next) => {
   try {
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
@@ -177,7 +219,7 @@ router.get("/me", authenticate, async (req, res, next) => {
  
 // Mobile: authenticated self-deactivation. The account is soft-disabled so it
 // cannot sign in on any client; existing records are retained for recovery/audit.
-router.delete("/account", authenticate, async (req, res, next) => {
+router.delete("/account", accountDeactivationIpLimiter, authenticate, async (req, res, next) => {
   try {
     const user = await User.findById(req.userId);
     if (!user || user.isActive === false) {
@@ -194,7 +236,7 @@ router.delete("/account", authenticate, async (req, res, next) => {
 
 // Public website: verify credentials first, then require a second explicit
 // confirmation before disabling the account.
-router.post("/delete-account", async (req, res, next) => {
+router.post("/delete-account", accountDeactivationIpLimiter, accountDeactivationLimiter, async (req, res, next) => {
   try {
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
