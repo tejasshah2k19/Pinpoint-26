@@ -11,6 +11,15 @@ const router = express.Router();
 
 const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
+// MPIN is retained as a backend endpoint; throttle guesses by source IP.
+const mpinLoginLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES,
+  limit: 5,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { success: false, message: "Too many MPIN sign-in attempts. Please try again in 15 minutes." }
+});
+
 // Login protection is layered: a broad per-IP ceiling plus a per-account-and-IP
 // ceiling. The account key is never used alone, so an attacker cannot lock a
 // victim out from another network. Successful password logins do not consume
