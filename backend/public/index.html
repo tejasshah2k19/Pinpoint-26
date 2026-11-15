@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101d35">
+  <meta name="description" content="Discover PinPoint26, a location-sharing platform for discovering and sharing places. Explore the web platform, Android app and account privacy options.">
+  <title>PinPoint26 — Discover. Share. Stay Connected.</title>
+  <style>
+    :root{color-scheme:light;--ink:#14213a;--muted:#63718a;--blue:#2864d7;--line:#e7edf5;--soft:#f4f7fc}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:#fff}
+    a{color:inherit;text-decoration:none}.wrap{width:min(1120px,calc(100% - 40px));margin:auto}
+    header{height:76px;display:flex;align-items:center;border-bottom:1px solid var(--line);background:#ffffffed;position:sticky;top:0;z-index:5;backdrop-filter:blur(12px)}
+    .nav{display:flex;align-items:center;justify-content:space-between;gap:24px}.brand{display:flex;align-items:center;gap:11px;font-weight:850;letter-spacing:-.5px;font-size:18px}.brand-mark{width:39px;height:39px;border-radius:13px;background:linear-gradient(145deg,#3479ed,#173c91);color:#fff;display:grid;place-items:center;font-size:23px;box-shadow:0 7px 18px #2864d733}
+    .brand small{display:block;font-size:9px;letter-spacing:2px;color:#7c8ba3;margin-top:2px}.links{display:flex;align-items:center;gap:26px;font-size:13px;font-weight:650;color:#52617a}.links a:hover{color:var(--blue)}.links .delete{color:#a63f45}
+    .hero{overflow:hidden;background:radial-gradient(ellipse at 80% 20%,#dce9ff 0,transparent 35%),linear-gradient(135deg,#f7faff,#edf3ff);padding:92px 0 86px}
+    .hero-grid{display:grid;grid-template-columns:1.12fr .88fr;align-items:center;gap:55px}.eyebrow{font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--blue)}
+    h1{font-size:clamp(42px,5.5vw,66px);line-height:1.04;letter-spacing:-3px;margin:17px 0 20px;max-width:650px}.lead{font-size:17px;line-height:1.75;color:#5d6d86;max-width:590px;margin:0}
+    .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:14px 20px;border-radius:12px;font-size:13px;font-weight:800;transition:.2s}.btn-primary{background:var(--blue);color:white;box-shadow:0 10px 22px #2864d733}.btn-primary:hover{background:#1d52bd;transform:translateY(-1px)}.btn-light{background:#fff;border:1px solid #dce5f2;color:#30415d}.btn-disabled{background:#e8edf5;color:#65738a;cursor:not-allowed}
+    .hero-art{min-height:330px;position:relative;display:grid;place-items:center}.map-card{width:min(100%,390px);height:310px;border:9px solid #fff;border-radius:28px;background:linear-gradient(35deg,#d9e9db 0 22%,#eef2df 22% 43%,#d9e8f4 43% 62%,#e9eddf 62%);box-shadow:0 24px 65px #263f681f;position:relative;overflow:hidden}
+    .map-card:before,.map-card:after{content:"";position:absolute;background:#fff;opacity:.9;border-radius:50%;height:13px;width:130%;transform:rotate(-28deg);top:43%;left:-10%;box-shadow:0 44px 0 #fff,0 -54px 0 #fff}.map-card:after{transform:rotate(58deg);left:40%;top:-10%;height:120%;width:11px;box-shadow:48px 0 0 #fff,-50px 0 0 #fff}
+    .pin{position:absolute;z-index:2;left:48%;top:34%;width:58px;height:58px;border-radius:50% 50% 50% 8px;transform:rotate(-45deg);background:linear-gradient(145deg,#3479ed,#173c91);box-shadow:0 12px 24px #173c9140;display:grid;place-items:center}.pin span{transform:rotate(45deg);font-size:27px;color:white}
+    .map-label{position:absolute;z-index:3;background:white;border-radius:12px;padding:11px 14px;box-shadow:0 8px 25px #1a31551c;font-size:11px;font-weight:800}.map-label.one{left:8%;top:18%}.map-label.two{right:7%;bottom:17%}
+    .float-note{position:absolute;z-index:4;bottom:0;left:0;background:#fff;padding:13px 16px;border-radius:14px;box-shadow:0 12px 35px #1a31551a;font-size:12px;font-weight:750}
+    section{padding:76px 0}.section-head{text-align:center;max-width:650px;margin:0 auto 38px}.section-head h2{font-size:34px;letter-spacing:-1.2px;margin:10px 0}.section-head p{color:var(--muted);font-size:14px;line-height:1.7;margin:0}
+    .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.card{border:1px solid var(--line);border-radius:19px;padding:25px;background:#fff;box-shadow:0 8px 30px #1b31500a}.icon{width:46px;height:46px;border-radius:14px;background:#edf3ff;color:var(--blue);display:grid;place-items:center;font-size:22px}.card h3{font-size:17px;margin:18px 0 8px}.card p{font-size:13px;line-height:1.7;color:var(--muted);margin:0}
+    .app-section{background:var(--soft)}.app-panel{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:25px;padding:38px}.app-panel h2{font-size:32px;letter-spacing:-1.2px;margin:10px 0}.app-panel p{color:var(--muted);font-size:14px;line-height:1.75}.app-visual{min-height:220px;border-radius:20px;background:linear-gradient(145deg,#e9f1ff,#f5f8ff);display:grid;place-items:center}.phone{width:120px;height:205px;border:7px solid #172944;border-radius:25px;background:white;box-shadow:0 15px 30px #1b31502b;padding:13px 8px}.phone-top{height:7px;width:35px;border-radius:8px;background:#172944;margin:0 auto 16px}.phone-map{height:112px;border-radius:12px;background:linear-gradient(35deg,#d7e7d9,#eef2df 45%,#dceafa 46%,#dceafa 60%,#e8efdf)}.phone-dot{width:14px;height:14px;background:#2864d7;border:3px solid white;border-radius:50%;margin:-65px auto 50px;box-shadow:0 2px 6px #17294455}
+    .privacy{display:flex;gap:16px;align-items:flex-start;background:#f6f9ff;border:1px solid #e3ecfb;border-radius:16px;padding:20px;margin-top:20px}.privacy strong{display:block;font-size:14px;margin-bottom:5px}.privacy p{margin:0;color:var(--muted);font-size:12px;line-height:1.65}
+    .delete-section{padding:58px 0}.delete-box{display:flex;align-items:center;justify-content:space-between;gap:25px;border:1px solid #f0dede;background:#fffafa;border-radius:20px;padding:27px 30px}.delete-box h2{font-size:21px;margin:0 0 7px}.delete-box p{font-size:13px;line-height:1.6;color:#78666a;margin:0;max-width:650px}.delete-link{white-space:nowrap;background:#fff;border:1px solid #e6c7c7;color:#a63f45;border-radius:11px;padding:12px 16px;font-size:12px;font-weight:800}
+    footer{background:#101d35;color:#dce5f4;padding:34px 0}.foot{display:flex;justify-content:space-between;align-items:center;gap:20px}.foot p{margin:5px 0 0;color:#9eacc2;font-size:11px}.foot-links{display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:#c2cde0}
+    @media(max-width:760px){.links{gap:13px;font-size:11px}.links a:nth-child(1),.links a:nth-child(2){display:none}.hero{padding:64px 0}.hero-grid,.app-panel{grid-template-columns:1fr;gap:25px}.hero-art{min-height:280px}.map-card{height:260px}.cards{grid-template-columns:1fr}.app-panel{padding:24px}.delete-box{align-items:flex-start;flex-direction:column}.foot{align-items:flex-start;flex-direction:column}h1{letter-spacing:-2px}}
+  </style>
+</head>
+<body>
+  <header><div class="wrap nav">
+    <a class="brand" href="/"><span class="brand-mark">⌖</span><span>PINPOINT26<small>DISCOVER · SHARE · CONNECT</small></span></a>
+    <nav class="links" aria-label="Main navigation">
+      <a href="#features">Features</a><a href="#mobile-app">Mobile App</a><a href="/admin">Admin Portal</a><a class="delete" href="/delete-account">Delete Account</a>
+    </nav>
+  </div></header>
+  <main>
+    <section class="hero"><div class="wrap hero-grid">
+      <div>
+        <div class="eyebrow">Welcome to PinPoint26</div>
+        <h1>Discover places.<br>Share what matters.</h1>
+        <p class="lead">PinPoint26 brings location discovery and sharing together. Explore places shared by the community, save useful locations and manage the places you choose to share.</p>
+        <div class="actions">
+          <a class="btn btn-primary" href="#mobile-app">Get the Android App <span aria-hidden="true">↗</span></a>
+          <a class="btn btn-light" href="#features">Explore PinPoint26</a>
+        </div>
+      </div>
+      <div class="hero-art" aria-label="Illustration of a location map">
+        <div class="map-card"><div class="map-label one">📍 Discover places</div><div class="pin"><span>⌖</span></div><div class="map-label two">✦ Shared locations</div></div>
+        <div class="float-note">Your places. Your sharing choices.</div>
+      </div>
+    </div></section>
+    <section id="features"><div class="wrap">
+      <div class="section-head"><div class="eyebrow">What you can do</div><h2>One platform, useful possibilities</h2><p>PinPoint26 is designed to make it easier to work with places and location information across supported experiences.</p></div>
+      <div class="cards">
+        <article class="card"><div class="icon">⌖</div><h3>Discover locations</h3><p>Browse location information shared publicly by active PinPoint26 users.</p></article>
+        <article class="card"><div class="icon">＋</div><h3>Add and manage places</h3><p>Create location entries with details such as address, category, notes and coordinates.</p></article>
+        <article class="card"><div class="icon">◉</div><h3>Choose what to share</h3><p>Manage the public-sharing setting for locations you add. Your account controls whether your locations remain visible.</p></article>
+      </div>
+    </div></section>
+    <section class="app-section" id="mobile-app"><div class="wrap">
+      <div class="app-panel">
+        <div><div class="eyebrow">PinPoint26 on Android</div><h2>Take PinPoint26 with you.</h2><p>Use the PinPoint26 Android app to access your account and location features from your mobile device.</p>
+          <div class="actions"><span class="btn btn-disabled" aria-disabled="true">Google Play — Coming soon</span></div>
+          <p style="font-size:11px;margin-top:12px">The official Play Store link will be added here once the app is published.</p>
+        </div>
+        <div class="app-visual" aria-hidden="true"><div class="phone"><div class="phone-top"></div><div class="phone-map"></div><div class="phone-dot"></div></div></div>
+      </div>
+      <div class="privacy"><div class="icon">♢</div><div><strong>Your privacy matters</strong><p>You can control public sharing for your locations. If you deactivate your account, you will no longer be able to sign in and your locations will no longer be shown to other users.</p></div></div>
+    </div></section>
+    <section class="delete-section"><div class="wrap"><div class="delete-box">
+      <div><h2>Need to delete your PinPoint26 account?</h2><p>Use our public account deletion page. Verify your account with your email and password, review the warning, and confirm deactivation. This option is available even if you no longer have the app installed.</p></div>
+      <a class="delete-link" href="/delete-account">Go to Delete Account →</a>
+    </div></div></section>
+  </main>
+  <footer><div class="wrap foot">
+    <div><a class="brand" href="/" style="color:#fff"><span class="brand-mark">⌖</span><span>PINPOINT26<small style="color:#9eacc2">DISCOVER · SHARE · CONNECT</small></span></a><p>© 2026 PinPoint26. All rights reserved.</p></div>
+    <nav class="foot-links"><a href="#features">Features</a><a href="#mobile-app">Android App</a><a href="/delete-account">Delete Account</a><a href="/admin">Admin Portal</a></nav>
+  </div></footer>
+</body>
+</html>
