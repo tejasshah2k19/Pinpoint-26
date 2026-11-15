@@ -118,7 +118,13 @@ async function renderUsers() {
   const result = await api("/admin/users?limit=100");
   const users = result.data || [];
   content.innerHTML =
-    '<div class="section-intro"><div><h2>Community accounts</h2><p>Review account status and assign administrator access.</p></div><span class="count-pill">' + users.length + ' shown</span></div>' +
+    '<div class="section-intro"><div><h2>Community accounts</h2><p>Create accounts, assign administrator access and manage account status.</p></div><span class="count-pill">' + users.length + ' shown</span></div>' +
+    '<div class="panel form-panel"><h3>Create a user account</h3><form id="userForm" class="form-grid">' +
+    '<label>Name<input name="name" required maxlength="80" autocomplete="name" placeholder="Full name"></label>' +
+    '<label>Email<input name="email" type="email" required maxlength="254" autocomplete="email" placeholder="name@example.com"></label>' +
+    '<label>Password<input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters"></label>' +
+    '<label>Account role<select name="role"><option value="user">User</option><option value="admin">Admin</option></select></label>' +
+    '<div class="span-2 form-actions"><button class="btn primary" type="submit">＋ Create account</button><small class="field-hint">New users can sign in immediately. Admin accounts can access this dashboard.</small></div></form></div>' +
     '<div class="table-wrap"><table><thead><tr><th>USER</th><th>JOINED</th><th>ROLE</th><th>STATUS</th><th>ACTION</th></tr></thead><tbody>' +
     (users.length ? users.map(function (u) {
       const isSelf = String(u._id) === String(adminUser && adminUser.id);
@@ -129,10 +135,208 @@ async function renderUsers() {
     }).join("") : '<tr><td colspan="5" class="empty-cell">No accounts found.</td></tr>') +
     '</tbody></table></div><p class="table-footnote">Deactivated accounts cannot sign in or use the mobile app. At least one active administrator is always required.</p>';
 }
+let adminLocationMap = null;
+let adminLocationMarker = null;
+let placeSuggestionTimer = null;
+let placeSuggestionController = null;
+let placeSuggestions = [];
+let lastPhotonRequestAt = 0;
+
+function photonAddress(properties) {
+  const p = properties || {};
+  const street = [p.housenumber, p.street].filter(Boolean).join(" ");
+  const values = [street, p.district, p.locality, p.city, p.state, p.postcode, p.country].filter(Boolean);
+  const seen = new Set();
+  return values.filter(function (value) {
+    const key = String(value).trim().toLocaleLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).join(", ");
+}
+function photonTitle(feature) {
+  const p = feature.properties || {};
+  return p.name || [p.housenumber, p.street].filter(Boolean).join(" ") || p.city || p.locality || "";
+}
+function updateAdminMapPoint(latitude, longitude, zoom) {
+  const lat = Number(latitude), lng = Number(longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+  const latInput = document.getElementById("locationLatitude");
+  const lngInput = document.getElementById("locationLongitude");
+  const status = document.getElementById("locationMapStatus");
+  if (latInput) latInput.value = lat.toFixed(6);
+  if (lngInput) lngInput.value = lng.toFixed(6);
+  if (adminLocationMap && window.L) {
+    const point = [lat, lng];
+    if (!adminLocationMarker) {
+      adminLocationMarker = window.L.marker(point, { draggable: true }).addTo(adminLocationMap);
+      adminLocationMarker.on("dragend", function (event) {
+        const moved = event.target.getLatLng();
+        updateAdminMapPoint(moved.lat, moved.lng, 16);
+        reverseAdminMapAddress(moved.lat, moved.lng);
+      });
+    } else {
+      adminLocationMarker.setLatLng(point);
+    }
+    adminLocationMap.setView(point, zoom || 16);
+  }
+  if (status) status.textContent = "Selected coordinates: " + lat.toFixed(6) + ", " + lng.toFixed(6) + " · Drag the pin to adjust";
+}
+async function reverseAdminMapAddress(latitude, longitude) {
+  try {
+    const payload = await api("/admin/reverse-geocode?lat=" + encodeURIComponent(latitude) + "&lon=" + encodeURIComponent(longitude));
+    const feature = payload.features && payload.features[0];
+    if (!feature) return;
+    const address = photonAddress(feature.properties) || feature.properties.name || "";
+    const field = document.getElementById("locationAddress");
+    if (field && address) field.value = address;
+  } catch (_) {
+    // The selected pin and coordinates remain usable even if reverse lookup is unavailable.
+  }
+}
+function parseGoogleMapsLocationLink(rawLink) {
+  const raw = String(rawLink || "").trim().replace(/&amp;/g, "&");
+  if (!raw) throw new Error("Paste a Google Maps link first.");
+  let url;
+  try { url = new URL(raw); } catch (_) { throw new Error("That does not look like a valid Google Maps URL."); }
+  if (!/(^|\.)google\.[a-z.]+$/i.test(url.hostname) && !/(^|\.)maps\.app\.goo\.gl$/i.test(url.hostname)) {
+    throw new Error("Please paste a link from Google Maps.");
+  }
+  let latitude = null, longitude = null;
+  const placeLat = url.href.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+  const viewport = url.pathname.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)(?:,|$)/);
+  const coords = placeLat || viewport;
+  if (coords) {
+    latitude = Number(coords[1]);
+    longitude = Number(coords[2]);
+  }
+  let placeSegment = "";
+  const placeMatch = url.pathname.match(/\/place\/([^/]+)/i);
+  if (placeMatch) {
+    try { placeSegment = decodeURIComponent(placeMatch[1].replace(/\+/g, " ")); }
+    catch (_) { placeSegment = placeMatch[1].replace(/\+/g, " "); }
+  }
+  placeSegment = placeSegment.replace(/\s+/g, " ").trim();
+  const rawTitle = placeSegment ? placeSegment.split(",")[0].trim() : "";
+  const title = rawTitle.replace(/\b[a-z]/g, function (letter) { return letter.toUpperCase(); });
+  const address = placeSegment || "";
+  if (latitude === null || longitude === null || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+    throw new Error("This Google Maps link does not contain extractable coordinates. Open the place in Google Maps and copy its full browser URL, not the short share link.");
+  }
+  if (!title && !address) throw new Error("The link contains coordinates but no place name. You can enter the name manually.");
+  return { title: title, address: address, latitude: latitude, longitude: longitude };
+}
+function importGoogleMapsLink() {
+  try {
+    const linkInput = document.getElementById("googleMapsImportLink");
+    const extracted = parseGoogleMapsLocationLink(linkInput && linkInput.value);
+    const title = document.getElementById("locationTitle");
+    const address = document.getElementById("locationAddress");
+    const search = document.getElementById("placeSearchInput");
+    if (title && extracted.title) title.value = extracted.title;
+    if (address && extracted.address) address.value = extracted.address;
+    if (search) search.value = extracted.title || extracted.address;
+    updateAdminMapPoint(extracted.latitude, extracted.longitude, 17);
+    const status = document.getElementById("locationMapStatus");
+    if (status) status.textContent = "Imported from Google Maps URL · " + extracted.latitude.toFixed(7) + ", " + extracted.longitude.toFixed(7) + " · Verify the pin before saving";
+    showNotice("Google Maps details extracted. Check the name, address and pin, then save the location.");
+  } catch (error) {
+    showNotice(error.message, true);
+  }
+}
+
+function initAdminLocationMap() {
+  const element = document.getElementById("adminLocationMap");
+  if (!element) return;
+  if (!window.L) {
+    element.innerHTML = '<div class="map-load-error">Map library could not load. Refresh the page and try again.</div>';
+    return;
+  }
+  if (adminLocationMap) {
+    adminLocationMap.remove();
+    adminLocationMap = null;
+    adminLocationMarker = null;
+  }
+  adminLocationMap = window.L.map(element, { scrollWheelZoom: true }).setView([23.0225, 72.5714], 12);
+  window.L.maplibreGL({
+    style: "https://tiles.openfreemap.org/styles/liberty",
+    attributionControl: true
+  }).addTo(adminLocationMap);
+  adminLocationMap.on("click", function (event) {
+    updateAdminMapPoint(event.latlng.lat, event.latlng.lng, 16);
+    reverseAdminMapAddress(event.latlng.lat, event.latlng.lng);
+  });
+  window.setTimeout(function () { if (adminLocationMap) adminLocationMap.invalidateSize(); }, 100);
+}
+function searchAdminPlaceNames(query) {
+  if (placeSuggestionTimer) window.clearTimeout(placeSuggestionTimer);
+  if (placeSuggestionController) placeSuggestionController.abort();
+  const box = document.getElementById("placeSuggestions");
+  if (!box) return;
+  if (query.trim().length < 3) {
+    box.classList.add("hidden");
+    box.innerHTML = "";
+    placeSuggestions = [];
+    return;
+  }
+  box.classList.remove("hidden");
+  box.innerHTML = '<div class="suggestion-message">Searching places…</div>';
+  const controller = new AbortController();
+  placeSuggestionController = controller;
+  placeSuggestionTimer = window.setTimeout(async function () {
+    try {
+      const wait = Math.max(0, 1100 - (Date.now() - lastPhotonRequestAt));
+      if (wait) await new Promise(function (resolve) { window.setTimeout(resolve, wait); });
+      if (controller.signal.aborted) return;
+      lastPhotonRequestAt = Date.now();
+      const payload = await api("/admin/place-search?q=" + encodeURIComponent(query.trim()), { signal: controller.signal });
+      placeSuggestions = (payload.features || []).filter(function (feature) {
+        return feature.geometry && Array.isArray(feature.geometry.coordinates) && feature.geometry.coordinates.length === 2;
+      });
+      const currentSearch = document.getElementById("placeSearchInput");
+      if (!currentSearch || currentSearch.value.trim() !== query.trim()) return;
+      if (!placeSuggestions.length) {
+        box.innerHTML = '<div class="suggestion-message">No matches found. Try a nearby area or a different spelling.</div>';
+        return;
+      }
+      box.innerHTML = placeSuggestions.map(function (feature, index) {
+        const title = photonTitle(feature) || "Unnamed place";
+        const address = photonAddress(feature.properties) || feature.properties.name || "";
+        return '<button type="button" class="suggestion-option" data-suggestion-index="' + index + '">' +
+          '<span class="suggestion-pin">⌖</span><span class="suggestion-copy"><b>' + escapeHtml(title) + '</b><small>' + escapeHtml(address) + '</small></span></button>';
+      }).join("");
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      box.innerHTML = '<div class="suggestion-message">Could not search right now. You can still select the location on the map.</div>';
+    }
+  }, 650);
+}
+function chooseAdminPlaceSuggestion(index) {
+  const feature = placeSuggestions[index];
+  if (!feature) return;
+  const coordinates = feature.geometry.coordinates;
+  const longitude = Number(coordinates[0]), latitude = Number(coordinates[1]);
+  const title = photonTitle(feature);
+  const address = photonAddress(feature.properties);
+  const titleInput = document.getElementById("locationTitle");
+  const addressInput = document.getElementById("locationAddress");
+  const searchInput = document.getElementById("placeSearchInput");
+  const box = document.getElementById("placeSuggestions");
+  if (titleInput && title) titleInput.value = title;
+  if (addressInput && address) addressInput.value = address;
+  if (searchInput) searchInput.value = [title, address].filter(Boolean).join(" · ");
+  if (box) { box.classList.add("hidden"); box.innerHTML = ""; }
+  updateAdminMapPoint(latitude, longitude, 17);
+}
+
 async function renderLocations() {
-  const results = await Promise.all([api("/admin/locations?limit=100"), api("/admin/categories")]);
+  const results = await Promise.all([api("/admin/locations?limit=100"), api("/admin/categories"), api("/admin/users?limit=100")]);
   const places = results[0].data || [];
   const categoryRecords = results[1].data || [];
+  const users = results[2].data || [];
+  const ownerOptions = users.map(function (user) {
+    return '<option value="' + escapeHtml(user._id) + '">' + escapeHtml((user.name || user.email) + " · " + user.email) + '</option>';
+  }).join("");
   const categoryNames = [];
   const seenNames = new Set();
   categoryRecords.concat(places.map(function (p) { return { name: p.category || "Other" }; })).forEach(function (item) {
@@ -150,15 +354,24 @@ async function renderLocations() {
   }
   content.innerHTML =
     '<div class="section-intro"><div><h2>Location directory</h2><p>Add a useful public place or moderate saved locations from the community.</p></div><span class="count-pill">' + places.length + ' shown</span></div>' +
-    '<div class="panel form-panel"><div class="form-heading"><div><h3>Add a location</h3><p>Choose a saved category, or add a new one to the shared catalogue.</p></div><span class="public-tag">PUBLIC PLACE</span></div>' +
+    '<div class="panel form-panel google-import-panel"><div class="form-heading"><div><h3>Import from Google Maps</h3><p>Paste the full Google Maps browser link to extract the place name, address and coordinates.</p></div><span class="import-tag">QUICK IMPORT</span></div>' +
+    '<div class="google-import-row"><input id="googleMapsImportLink" type="url" placeholder="Paste Google Maps link here…" autocomplete="off"><button type="button" class="btn secondary" data-action="import-google-maps">Import link</button></div>' +
+    '<small class="field-hint">Tip: Open the place in Google Maps and copy the full URL from your browser address bar. Short share links may not include coordinates.</small></div>' +
+    '<div class="panel form-panel"><div class="form-heading"><div><h3>Add a location</h3><p>Review imported details, adjust the map pin if needed, then save.</p></div><span class="public-tag">PUBLIC PLACE</span></div>' +
     '<form id="locationForm" class="form-grid">' +
-    '<label class="span-2">Place name<input name="title" required maxlength="120" placeholder="e.g. Sabarmati Riverfront"></label>' +
+    '<div class="span-2 place-search-field"><label>Search place name or address' +
+    '<input id="placeSearchInput" type="search" autocomplete="off" placeholder="Start typing e.g. Sabarmati Riverfront, Ahmedabad"></label>' +
+    '<div id="placeSuggestions" class="place-suggestions hidden"></div>' +
+    '<small class="field-hint">Choose a suggestion to automatically fill the place name, address and map pin.</small></div>' +
+    '<label class="span-2">Place name<input id="locationTitle" name="title" required maxlength="120" placeholder="e.g. Sabarmati Riverfront"></label>' +
     '<label>Category<select name="category" id="locationCategorySelect" required>' + categoryOptions("Other") + '</select></label>' +
     '<div class="category-add-wrap"><button type="button" class="text-action" data-action="show-add-location-category">＋ Add custom category</button><div id="locationCustomCategoryBox" class="hidden custom-category-inline"><input id="newLocationCategory" maxlength="50" placeholder="New category name"><button type="button" class="btn secondary" data-action="save-location-category">Save category</button></div></div>' +
-    '<label>Owner user ID (optional)<input name="userId" placeholder="Leave blank for admin-owned"></label>' +
-    '<label class="span-2">Full address<input name="address" maxlength="300" placeholder="Street, area, city, state, PIN code"></label>' +
-    '<label>Latitude<input name="latitude" type="number" step="any" min="-90" max="90" required placeholder="23.0225"></label>' +
-    '<label>Longitude<input name="longitude" type="number" step="any" min="-180" max="180" required placeholder="72.5714"></label>' +
+    '<label class="span-2">Location owner<select name="userId" id="locationOwnerSelect" required>' + ownerOptions + '</select><small class="field-hint">Choose which user owns this location. Admins can change the owner later.</small></label>' +
+    '<label class="span-2">Full address<input id="locationAddress" name="address" maxlength="300" placeholder="Street, area, city, state, PIN code"></label>' +
+    '<div class="span-2 map-picker-heading"><div><b>Pinpoint the exact location</b><small>Click the map to drop a pin, or drag the marker to fine-tune it.</small></div><button type="button" class="text-action" data-action="reset-admin-map">Reset map</button></div>' +
+    '<div class="span-2"><div id="adminLocationMap" class="admin-location-map"></div><p id="locationMapStatus" class="map-status">No coordinates selected. Choose a search suggestion or click the map.</p></div>' +
+    '<label>Latitude<input id="locationLatitude" name="latitude" type="number" step="any" min="-90" max="90" required placeholder="Click the map or choose a suggestion"></label>' +
+    '<label>Longitude<input id="locationLongitude" name="longitude" type="number" step="any" min="-180" max="180" required placeholder="Click the map or choose a suggestion"></label>' +
     '<label class="span-2">Notes<textarea name="notes" rows="2" maxlength="2000" placeholder="Useful details for visitors"></textarea></label>' +
     '<label class="check-label span-2"><input name="isPublic" type="checkbox" checked> Publish this place to all Pinpoint users</label>' +
     '<div class="span-2 form-actions"><button class="btn primary" type="submit">＋ Save location</button></div></form></div>' +
@@ -168,10 +381,13 @@ async function renderLocations() {
       const owner = p.user && (p.user.name || p.user.email) || "Unknown";
       return '<tr><td><b>' + escapeHtml(p.title) + '</b><small>' + escapeHtml(p.address || "—") + '</small></td>' +
       '<td><select class="compact-select" data-location-category="' + escapeHtml(p._id) + '">' + categoryOptions(p.category || "Other") + '</select></td>' +
-      '<td>' + escapeHtml(owner) + '</td><td><span class="status ' + (p.isPublic ? "public" : "private") + '">' + (p.isPublic ? "Public" : "Private") + '</span></td><td>' + dateText(p.createdAt) + '</td>' +
+      '<td><select class="compact-select" data-location-owner="' + escapeHtml(p._id) + '">' + users.map(function (user) {
+        return '<option value="' + escapeHtml(user._id) + '"' + (p.user && String(p.user._id) === String(user._id) ? " selected" : "") + '>' + escapeHtml(user.name || user.email) + '</option>';
+      }).join("") + '</select><small>' + escapeHtml(owner) + '</small></td><td><span class="status ' + (p.isPublic ? "public" : "private") + '">' + (p.isPublic ? "Public" : "Private") + '</span></td><td>' + dateText(p.createdAt) + '</td>' +
       '<td class="actions"><button class="text-action" data-action="edit-location" data-id="' + escapeHtml(p._id) + '" data-title="' + escapeHtml(p.title) + '" data-address="' + escapeHtml(p.address || "") + '" data-notes="' + escapeHtml(p.notes || "") + '">Edit</button><button class="text-action" data-action="toggle-place" data-id="' + escapeHtml(p._id) + '" data-public="' + (!!p.isPublic) + '">' + (p.isPublic ? "Make private" : "Publish") + '</button><button class="text-action danger-text" data-action="delete-place" data-id="' + escapeHtml(p._id) + '">Delete</button></td></tr>';
     }).join("") : '<tr><td colspan="6" class="empty-cell">No places have been saved yet.</td></tr>') +
     '</tbody></table></div>';
+  initAdminLocationMap();
 }
 
 async function renderCategories() {
@@ -212,6 +428,11 @@ async function renderOffers() {
 }
 
 content.addEventListener("click", async function (event) {
+  const suggestion = event.target.closest("[data-suggestion-index]");
+  if (suggestion) {
+    chooseAdminPlaceSuggestion(Number(suggestion.dataset.suggestionIndex));
+    return;
+  }
   const go = event.target.closest("[data-go]");
   if (go) return navigate(go.dataset.go);
   const quick = event.target.closest('[data-action="quick-add-location"]');
@@ -221,6 +442,32 @@ content.addEventListener("click", async function (event) {
   if (button.dataset.action === "retry") return window.location.reload();
   const id = button.dataset.id;
   try {
+    if (button.dataset.action === "import-google-maps") {
+      importGoogleMapsLink();
+      return;
+    }
+    if (button.dataset.action === "reset-admin-map") {
+      const title = document.getElementById("locationTitle");
+      const search = document.getElementById("placeSearchInput");
+      const address = document.getElementById("locationAddress");
+      const lat = document.getElementById("locationLatitude");
+      const lng = document.getElementById("locationLongitude");
+      if (title) title.value = "";
+      if (search) search.value = "";
+      if (address) address.value = "";
+      if (lat) lat.value = "";
+      if (lng) lng.value = "";
+      const suggestions = document.getElementById("placeSuggestions");
+      if (suggestions) { suggestions.innerHTML = ""; suggestions.classList.add("hidden"); }
+      if (adminLocationMap) {
+        if (adminLocationMarker) adminLocationMap.removeLayer(adminLocationMarker);
+        adminLocationMarker = null;
+        adminLocationMap.setView([23.0225, 72.5714], 12);
+      }
+      const status = document.getElementById("locationMapStatus");
+      if (status) status.textContent = "No coordinates selected. Choose a search suggestion or click the map.";
+      return;
+    }
     if (button.dataset.action === "show-add-location-category") {
       document.getElementById("locationCustomCategoryBox").classList.toggle("hidden");
       return;
@@ -300,7 +547,25 @@ content.addEventListener("click", async function (event) {
     }
   } catch (err) { showNotice(err.message, true); }
 });
+content.addEventListener("input", function (event) {
+  if (event.target && event.target.id === "placeSearchInput") {
+    searchAdminPlaceNames(event.target.value);
+  }
+});
 content.addEventListener("change", async function (event) {
+  const ownerSelect = event.target.closest("[data-location-owner]");
+  if (ownerSelect) {
+    try {
+      ownerSelect.disabled = true;
+      await api("/admin/locations/" + ownerSelect.dataset.locationOwner, { method: "PUT", body: JSON.stringify({ userId: ownerSelect.value }) });
+      showNotice("Location owner changed successfully.");
+      await renderLocations();
+    } catch (err) {
+      showNotice(err.message, true);
+      ownerSelect.disabled = false;
+    }
+    return;
+  }
   const categorySelect = event.target.closest("[data-location-category]");
   if (categorySelect) {
     try {
@@ -319,12 +584,19 @@ content.addEventListener("change", async function (event) {
 });
 content.addEventListener("submit", async function (event) {
   const form = event.target;
-  if (!["locationForm", "categoryForm", "offerForm"].includes(form.id)) return;
+  if (!["userForm", "locationForm", "categoryForm", "offerForm"].includes(form.id)) return;
   event.preventDefault();
   const button = form.querySelector('button[type="submit"]');
   button.disabled = true;
   const data = new FormData(form);
   try {
+    if (form.id === "userForm") {
+      const result = await api("/admin/users", { method: "POST", body: JSON.stringify({
+        name: data.get("name"), email: data.get("email"), password: data.get("password"), role: data.get("role")
+      }) });
+      showNotice(result.data.role === "admin" ? "New administrator account created." : "New user account created.");
+      await renderUsers();
+    }
     if (form.id === "locationForm") {
       const body = {
         title: data.get("title"), category: data.get("category"), userId: data.get("userId") || undefined,

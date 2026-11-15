@@ -10,7 +10,19 @@ const User = require("./models/User");
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://unpkg.com"],
+      workerSrc: ["'self'", "blob:"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com"],
+      imgSrc: ["'self'", "data:", "blob:", "https://*.tile.openstreetmap.org", "https://unpkg.com"],
+      connectSrc: ["'self'", "https://tiles.openfreemap.org"],
+      fontSrc: ["'self'", "data:"]
+    }
+  }
+}));
 app.use(cors({
   origin: process.env.CLIENT_ORIGIN
     ? process.env.CLIENT_ORIGIN.split(",").map((value) => value.trim())
@@ -27,6 +39,10 @@ app.use(rateLimit({
 
 app.get("/", (req, res) => {
   res.json({ success: true, message: "Pinpoint API is running", version: "1.0.0" });
+});
+
+app.get("/delete-account", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "delete-account.html"));
 });
 
 app.get("/admin", (req, res) => {

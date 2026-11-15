@@ -89,4 +89,51 @@ router.get("/me", authenticate, async (req, res, next) => {
   }
 });
 
+ 
+// Mobile: authenticated self-deactivation. The account is soft-disabled so it
+// cannot sign in on any client; existing records are retained for recovery/audit.
+router.delete("/account", authenticate, async (req, res, next) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user || user.isActive === false) {
+      return res.status(404).json({ success: false, message: "Account is already unavailable" });
+    }
+    user.isActive = false;
+    user.accountDeactivatedAt = new Date();
+    await user.save();
+    return res.json({ success: true, message: "Your Pinpoint account has been deactivated." });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// Public website: verify credentials first, then require a second explicit
+// confirmation before disabling the account.
+router.post("/delete-account", async (req, res, next) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+    const confirm = req.body.confirm === true;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: "Email and password are required." });
+    }
+    const user = await User.findOne({ email }).select("+passwordHash");
+    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+      return res.status(401).json({ success: false, message: "The email or password is incorrect." });
+    }
+    if (user.isActive === false) {
+      return res.status(409).json({ success: false, message: "This account is already deactivated." });
+    }
+    if (!confirm) {
+      return res.json({ success: true, verified: true, message: "Credentials verified. Confirm below to deactivate your account." });
+    }
+    user.isActive = false;
+    user.accountDeactivatedAt = new Date();
+    await user.save();
+    return res.json({ success: true, message: "Your Pinpoint account has been deactivated." });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 module.exports = router;

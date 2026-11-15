@@ -5,6 +5,7 @@ import {
   TouchableOpacity, View
 } from "react-native";
 import * as Location from "expo-location";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import MapView, { Marker } from "react-native-maps";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { api } from "./src/api";
@@ -60,6 +61,7 @@ function PlaceCard(p) {
 
 export default function App() {
   const [token,setToken] = useState("");
+  const [sessionChecking,setSessionChecking] = useState(true);
   const [user,setUser] = useState(null);
   const [authMode,setAuthMode] = useState("login");
   const [auth,setAuth] = useState({name:"",email:"",password:""});
@@ -107,6 +109,30 @@ export default function App() {
     catch(e) { Alert.alert("Could not load places",e.message); }
     finally { setLoading(false); }
   }
+  useEffect(() => {
+    let mounted = true;
+    async function restoreSession() {
+      try {
+        const savedToken = await AsyncStorage.getItem("pinpoint_session_token");
+        if (!savedToken) return;
+        const result = await api.me(savedToken);
+        if (!mounted) return;
+        if (!result.user) throw new Error("Session is no longer valid");
+        setUser(result.user);
+        setToken(savedToken);
+      } catch (_) {
+        await AsyncStorage.multiRemove(["pinpoint_session_token"]);
+        if (mounted) {
+          setToken("");
+          setUser(null);
+        }
+      } finally {
+        if (mounted) setSessionChecking(false);
+      }
+    }
+    restoreSession();
+    return () => { mounted = false; };
+  }, []);
   useEffect(() => { if(token) { loadLocations(token); loadCategories(token); } },[token]);
 
   async function submitAuth() {
@@ -115,6 +141,7 @@ export default function App() {
     setBusy(true);
     try {
       const result = authMode === "login" ? await api.login({email:auth.email.trim(),password:auth.password}) : await api.register({name:auth.name.trim(),email:auth.email.trim(),password:auth.password});
+      await AsyncStorage.setItem("pinpoint_session_token", result.token);
       setToken(result.token); setUser(result.user); setTab("Home");
     } catch(e) { Alert.alert("Authentication failed",e.message); }
     finally { setBusy(false); }
@@ -198,6 +225,28 @@ export default function App() {
       {text:"Delete",style:"destructive",onPress:async()=>{try{await api.deleteLocation(token,id);await loadLocations(token);}catch(e){Alert.alert("Delete failed",e.message);}}}
     ]);
   }
+
+  function requestAccountDeletion() {
+    Alert.alert(
+      "⚠️ Deactivate your account?",
+      "This will sign you out and permanently block this account from logging in on the mobile app and website. Your saved records will be retained, not permanently erased. This action cannot be undone from the app.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Deactivate account", style: "destructive", onPress: async () => {
+          setBusy(true);
+          try {
+            await api.deleteAccount(token);
+            await AsyncStorage.multiRemove(["pinpoint_session_token"]);
+            setToken(""); setUser(null); setLocations([]); setNearbyLocations([]);
+            setTab("Home"); setAuth({name:"",email:"",password:""});
+            Alert.alert("Account deactivated","Your Pinpoint account has been deactivated. You can no longer sign in.");
+          } catch (e) {
+            Alert.alert("Could not deactivate account",e.message);
+          } finally { setBusy(false); }
+        }}
+      ]
+    );
+  }
   const categoryNames = useMemo(() => {
     const names = [...categories.map(item=>typeof item === "string" ? item : item.name), ...locations.map(item=>item.category), ...DEFAULT_CATEGORIES].filter(Boolean);
     const seen = new Set();
@@ -215,13 +264,16 @@ export default function App() {
     return matchCat && matchText;
   }),[locations,category,search]);
 
+  if(sessionChecking) return <SafeAreaView style={[s.safe,{alignItems:"center",justifyContent:"center"}]}><ActivityIndicator size="large" color={C.coral}/><Text style={{color:C.muted,marginTop:12,fontSize:12}}>Restoring your session…</Text></SafeAreaView>;
+
   if(!token) return <SafeAreaView style={s.safe}>
     <ExpoStatusBar style="dark" />
     <KeyboardAvoidingView style={s.authScreen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={s.authContent} keyboardShouldPersistTaps="handled">
         <View style={s.brandMark}><Text style={s.brandMarkText}>➤</Text></View>
         <Text style={s.brandWord}>PINPOINT</Text>
-        <Text style={s.authTitle}>Your places,{"\n"}remembered.</Text>
+        <Text style={s.authTitle}>Your places,{"
+"}remembered.</Text>
         <Text style={s.authSub}>Capture the spots worth coming back to, with exact GPS coordinates.</Text>
         {authMode === "register" && <View><Text style={s.label}>Your name</Text><Field placeholder="Your name" value={auth.name} onChangeText={v=>setAuth({...auth,name:v})}/></View>}
         <Text style={s.label}>Email address</Text>
@@ -371,7 +423,14 @@ export default function App() {
     {tab === "Profile" && <View style={s.screen}><Text style={s.placesTitle}>Profile</Text><Text style={s.placesSub}>Your Pinpoint account and preferences.</Text>
       <View style={s.profileCard}><View style={s.avatar}><Text style={s.avatarText}>{firstName.charAt(0).toUpperCase()}</Text></View><Text style={s.profileName}>{user && user.name || "Pinpoint user"}</Text><Text style={s.profileEmail}>{user && user.email || ""}</Text></View>
       <View style={s.privacyCard}><Text style={s.privacyTitle}>Your places are private</Text><Text style={s.privacyBody}>Your saved locations stay connected to your account. You choose when to share them.</Text></View>
-      <TouchableOpacity style={s.logout} onPress={()=>{setToken("");setUser(null);setLocations([]);setTab("Home");}}><Text style={s.logoutText}>Sign out</Text></TouchableOpacity>
+      <TouchableOpacity style={s.logout} onPress={async()=>{await AsyncStorage.multiRemove(["pinpoint_session_token"]);setToken("");setUser(null);setLocations([]);setNearbyLocations([]);setTab("Home");setAuth({name:"",email:"",password:""});}}><Text style={s.logoutText}>Sign out</Text></TouchableOpacity>
+      <View style={s.dangerZone}>
+        <Text style={s.dangerTitle}>Danger zone</Text>
+        <Text style={s.dangerDescription}>Deactivate your Pinpoint account and block future sign-ins on every device. Saved records are retained.</Text>
+        <TouchableOpacity style={s.deleteAccountButton} onPress={requestAccountDeletion} disabled={busy}>
+          <Text style={s.deleteAccountText}>{busy ? "Please wait…" : "⚠️  Delete my account"}</Text>
+        </TouchableOpacity>
+      </View>
     </View>}
     <View style={s.tabs}>
       <TabButton icon="⌂" label="Home" active={tab==="Home"} onPress={()=>setTab("Home")}/>
@@ -414,9 +473,9 @@ const s = StyleSheet.create({
  placesTitle:{color:C.ink,fontSize:27,fontWeight:"800",letterSpacing:-0.6},placesSub:{color:C.muted,fontSize:13,marginTop:4,marginBottom:16},
  searchBox:{height:46,borderRadius:14,backgroundColor:"#F2F1EB",borderWidth:1,borderColor:C.line,flexDirection:"row",alignItems:"center",paddingHorizontal:13},
  searchIcon:{fontSize:23,color:C.muted,marginRight:8},searchInput:{flex:1,color:C.ink,fontSize:13,paddingVertical:8},
- chipScroll:{flexGrow:0,marginTop:13,marginBottom:13},chipRow:{alignItems:"center",paddingRight:12},
- chip:{backgroundColor:"#EEEDE6",borderRadius:18,paddingHorizontal:16,paddingVertical:9,marginRight:7},chipActive:{backgroundColor:C.coral},
- chipText:{color:"#55564F",fontSize:11,fontWeight:"700"},chipTextActive:{color:C.white},resultCount:{color:C.muted,fontSize:11,marginBottom:11},
+ chipScroll:{height:46,flexGrow:0,marginTop:13,marginBottom:13},chipRow:{height:46,alignItems:"center",paddingRight:12},
+ chip:{minHeight:36,justifyContent:"center",alignItems:"center",backgroundColor:"#EEEDE6",borderRadius:18,paddingHorizontal:16,paddingVertical:7,marginRight:7},chipActive:{backgroundColor:C.coral},
+ chipText:{color:"#55564F",fontSize:12,lineHeight:16,fontWeight:"700",includeFontPadding:false},chipTextActive:{color:C.white},resultCount:{color:C.muted,fontSize:11,marginBottom:11},
  placeCard:{backgroundColor:"#F5F4EE",borderRadius:17,borderWidth:1,borderColor:"#E9E7DE",padding:13,flexDirection:"row",alignItems:"center",marginBottom:10,minHeight:82},
  pin:{width:36,height:36,borderRadius:18,backgroundColor:C.coralPale,alignItems:"center",justifyContent:"center",marginRight:10},pinText:{color:C.coral,fontSize:22},
  placeInfo:{flex:1},placeTitle:{color:C.ink,fontSize:13,fontWeight:"800"},placeCategory:{color:"#B36F53",fontSize:11,fontWeight:"700",marginTop:3},communityTag:{color:"#5A8066",fontSize:8,fontWeight:"800",letterSpacing:0.35,marginTop:4},
@@ -434,7 +493,7 @@ const s = StyleSheet.create({
  avatar:{width:58,height:58,borderRadius:29,backgroundColor:C.coralPale,alignItems:"center",justifyContent:"center",marginBottom:10},avatarText:{color:C.coral,fontSize:24,fontWeight:"800"},
  profileName:{color:C.ink,fontSize:16,fontWeight:"800"},profileEmail:{color:C.muted,fontSize:12,marginTop:4},
  privacyCard:{backgroundColor:"#F2F1EB",borderRadius:16,padding:16,marginTop:14},privacyTitle:{color:C.ink,fontSize:13,fontWeight:"800",marginBottom:5},
- privacyBody:{color:C.muted,fontSize:12,lineHeight:18},logout:{borderWidth:1,borderColor:C.line,borderRadius:14,padding:14,alignItems:"center",marginTop:18},logoutText:{color:C.red,fontSize:13,fontWeight:"800"},
+ privacyBody:{color:C.muted,fontSize:12,lineHeight:18},dangerZone:{backgroundColor:"#FFF3F0",borderWidth:1,borderColor:"#EBC5BD",borderRadius:16,padding:16,marginTop:18},dangerTitle:{color:"#9F3F35",fontSize:13,fontWeight:"800",marginBottom:5},dangerDescription:{color:"#8D5B55",fontSize:11,lineHeight:17},deleteAccountButton:{borderWidth:1,borderColor:"#B7443C",borderRadius:12,padding:13,alignItems:"center",marginTop:12,backgroundColor:"#FFF9F7"},deleteAccountText:{color:"#B7443C",fontSize:12,fontWeight:"800"},logout:{borderWidth:1,borderColor:C.line,borderRadius:14,padding:14,alignItems:"center",marginTop:18},logoutText:{color:C.red,fontSize:13,fontWeight:"800"},
  categoryDropdown:{backgroundColor:"#F2F1EB",borderWidth:1,borderColor:"#E6E4DC",borderRadius:14,paddingHorizontal:14,paddingVertical:14,marginBottom:8,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},
  categoryDropdownText:{color:C.ink,fontSize:14,fontWeight:"600"},categoryDropdownArrow:{color:C.muted,fontSize:18},
  categoryDropdownMenu:{backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:14,marginBottom:12,overflow:"hidden"},

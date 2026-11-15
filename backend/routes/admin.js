@@ -1,5 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const Location = require("../models/Location");
 const Category = require("../models/Category");
@@ -9,6 +10,62 @@ const requireAdmin = require("../middleware/requireAdmin");
 
 const router = express.Router();
 router.use(authenticate, requireAdmin);
+
+router.get("/place-search", async (req, res, next) => {
+  try {
+    const query = String(req.query.q || "").trim().slice(0, 150);
+    if (query.length < 3) {
+      return res.status(400).json({ success: false, message: "Enter at least 3 characters to search for a place" });
+    }
+    const url = new URL("https://photon.komoot.io/api/");
+    url.searchParams.set("q", query);
+    url.searchParams.set("limit", "6");
+    url.searchParams.set("lang", "en");
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Pinpoint/1.0 admin location autocomplete"
+      },
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!response.ok) {
+      return res.status(502).json({ success: false, message: "Place search provider is temporarily unavailable" });
+    }
+    const payload = await response.json();
+    return res.json({ success: true, features: payload.features || [] });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/reverse-geocode", async (req, res, next) => {
+  try {
+    const latitude = Number(req.query.lat);
+    const longitude = Number(req.query.lon);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+        !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      return res.status(400).json({ success: false, message: "Valid latitude and longitude are required" });
+    }
+    const url = new URL("https://photon.komoot.io/reverse");
+    url.searchParams.set("lat", String(latitude));
+    url.searchParams.set("lon", String(longitude));
+    url.searchParams.set("lang", "en");
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Pinpoint/1.0 admin reverse geocoding"
+      },
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!response.ok) {
+      return res.status(502).json({ success: false, message: "Address lookup is temporarily unavailable" });
+    }
+    const payload = await response.json();
+    return res.json({ success: true, features: payload.features || [] });
+  } catch (error) {
+    return next(error);
+  }
+});
 
 function validId(id) {
   return mongoose.isValidObjectId(id);
@@ -57,6 +114,29 @@ router.get("/users", async (req, res, next) => {
     ]);
     res.json({ success: true, data, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (error) { next(error); }
+});
+
+router.post("/users", async (req, res, next) => {
+  try {
+    const name = String(req.body.name || "").trim();
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+    const role = req.body.role === undefined ? "user" : req.body.role;
+    if (!name || name.length > 80 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || password.length < 8) {
+      return res.status(400).json({ success: false, message: "Enter a name, valid email and password of at least 8 characters" });
+    }
+    if (!["user", "admin"].includes(role)) return res.status(400).json({ success: false, message: "Role must be user or admin" });
+    const existing = await User.findOne({ email }).select("_id");
+    if (existing) return res.status(409).json({ success: false, message: "Email is already registered" });
+    const passwordHash = await bcrypt.hash(password, 12);
+    const user = await User.create({ name, email, passwordHash, role, isActive: true });
+    return res.status(201).json({ success: true, data: {
+      _id: user._id, name: user.name, email: user.email, role: user.role, isActive: user.isActive, createdAt: user.createdAt
+    } });
+  } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ success: false, message: "Email is already registered" });
+    return next(error);
+  }
 });
 
 router.patch("/users/:id", async (req, res, next) => {
@@ -141,6 +221,12 @@ router.put("/locations/:id", async (req, res, next) => {
       const coordinates = validCoordinates(req.body);
       if (!coordinates) return res.status(400).json({ success: false, message: "Valid coordinates are required" });
       updates.coordinates = coordinates;
+    }
+    if (req.body.userId !== undefined) {
+      if (!validId(req.body.userId)) return res.status(400).json({ success: false, message: "Invalid owner user ID" });
+      const owner = await User.findById(req.body.userId).select("_id");
+      if (!owner) return res.status(404).json({ success: false, message: "Owner user not found" });
+      updates.user = owner._id;
     }
     if (updates.isPublic !== undefined && typeof updates.isPublic !== "boolean") {
       return res.status(400).json({ success: false, message: "isPublic must be true or false" });
