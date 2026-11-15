@@ -35,7 +35,7 @@ router.post("/mpin-login", async (req, res, next) => {
   try {
     const mpin = String(req.body.mpin || "");
     if (!/^\\d{6}$/.test(mpin)) return res.status(400).json({ success: false, message: "Enter your 6-digit MPIN." });
-    const user = await User.findOne({ mpinLookup: mpinLookup(mpin) }).select("+mpinHash");
+    const user = await User.findOne({ mpinLookup: mpinLookup(mpin) }).select("+mpinHash +mpinLookup");
     if (!user || !user.mpinHash || !(await bcrypt.compare(mpin, user.mpinHash))) {
       return res.status(401).json({ success: false, message: "Invalid MPIN." });
     }
@@ -106,7 +106,7 @@ router.post("/login", async (req, res, next) => {
   try {
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
-    let user = await User.findOne({ email }).select("+passwordHash");
+    let user = await User.findOne({ email }).select("+passwordHash +mpinLookup");
 
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       return res.status(401).json({ success: false, message: "Invalid email or password" });
@@ -128,7 +128,7 @@ router.post("/login", async (req, res, next) => {
 
 router.get("/me", authenticate, async (req, res, next) => {
   try {
-    const user = await User.findById(req.userId).select("name email role isActive createdAt");
+    const user = await User.findById(req.userId).select("name email role isActive createdAt +mpinLookup");
     if (!user || user.isActive === false) return res.status(404).json({ success: false, message: "User not found" });
     return res.json({ success: true, user: publicUser(user) });
   } catch (error) {
