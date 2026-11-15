@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
@@ -23,6 +24,52 @@ async function applyConfiguredAdmin(user) {
 function publicUser(user) {
   return { id: user._id, name: user.name, email: user.email, role: user.role || "user", isActive: user.isActive !== false };
 }
+
+function mpinLookup(mpin) {
+  if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is not configured");
+  return crypto.createHmac("sha256", process.env.JWT_SECRET).update(String(mpin)).digest("hex");
+}
+
+// Mobile MPIN sign-in. The lookup is keyed so the six-digit PIN is never stored in plaintext.
+router.post("/mpin-login", async (req, res, next) => {
+  try {
+    const mpin = String(req.body.mpin || "");
+    if (!/^\\d{6}$/.test(mpin)) return res.status(400).json({ success: false, message: "Enter your 6-digit MPIN." });
+    const user = await User.findOne({ mpinLookup: mpinLookup(mpin) }).select("+mpinHash");
+    if (!user || !user.mpinHash || !(await bcrypt.compare(mpin, user.mpinHash))) {
+      return res.status(401).json({ success: false, message: "Invalid MPIN." });
+    }
+    if (user.isActive === false) return res.status(403).json({ success: false, message: "This account has been deactivated." });
+    const activeUser = await applyConfiguredAdmin(user);
+    return res.json({ success: true, token: createToken(activeUser._id.toString()), user: publicUser(activeUser) });
+  } catch (error) { return next(error); }
+});
+
+// Set or change MPIN from an authenticated mobile session. Current password is required.
+router.put("/mpin", authenticate, async (req, res, next) => {
+  try {
+    const mpin = String(req.body.mpin || "");
+    const confirmMpin = String(req.body.confirmMpin || "");
+    const currentPassword = String(req.body.currentPassword || "");
+    if (!/^\\d{6}$/.test(mpin)) return res.status(400).json({ success: false, message: "MPIN must contain exactly 6 digits." });
+    if (mpin !== confirmMpin) return res.status(400).json({ success: false, message: "MPIN and confirmation do not match." });
+    if (!currentPassword) return res.status(400).json({ success: false, message: "Enter your current account password to continue." });
+    const user = await User.findById(req.userId).select("+passwordHash +mpinHash +mpinLookup");
+    if (!user || user.isActive === false) return res.status(404).json({ success: false, message: "Account not found." });
+    if (!(await bcrypt.compare(currentPassword, user.passwordHash))) return res.status(401).json({ success: false, message: "Current password is incorrect." });
+    const lookup = mpinLookup(mpin);
+    if (user.mpinLookup === lookup) return res.status(400).json({ success: false, message: "Choose a different MPIN." });
+    const existing = await User.findOne({ mpinLookup: lookup }).select("_id");
+    if (existing) return res.status(409).json({ success: false, message: "This MPIN is already assigned. Choose another 6-digit code." });
+    user.mpinHash = await bcrypt.hash(mpin, 12);
+    user.mpinLookup = lookup;
+    await user.save();
+    return res.json({ success: true, message: "Your MPIN has been saved." });
+  } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ success: false, message: "This MPIN is already assigned. Choose another 6-digit code." });
+    return next(error);
+  }
+});
 
 router.post("/register", async (req, res, next) => {
   try {
