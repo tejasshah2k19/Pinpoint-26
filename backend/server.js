@@ -40,8 +40,7 @@ app.use(rateLimit({
 }));
 
 // Installable Pinpoint web app (PWA), served alongside the native Expo app.
-app.get("/app", (req, res) => res.redirect(301, "/app/"));
-app.get("/app/", (req, res) => res.sendFile(path.join(__dirname, "public", "app.html")));
+app.get(["/app", "/app/"], (req, res) => res.sendFile(path.join(__dirname, "public", "app.html")));
 app.get("/app/sw.js", (req, res) => {
   res.setHeader("Service-Worker-Allowed", "/app/");
   res.sendFile(path.join(__dirname, "public", "sw.js"));
