@@ -71,6 +71,9 @@ export default function App() {
   const [nearbyRadius,setNearbyRadius] = useState(5000);
   const [nearbyCustomKm,setNearbyCustomKm] = useState("");
   const [nearbyLoading,setNearbyLoading] = useState(false);
+  const [mapCategory,setMapCategory] = useState("All");
+  const [mapRefreshing,setMapRefreshing] = useState(false);
+  const mapOverviewRef = useRef(null);
   const [form,setForm] = useState({title:"",category:"Food",address:"",notes:"",isPublic:false});
   const [categories,setCategories] = useState([]);
   const [categoryLoading,setCategoryLoading] = useState(false);
@@ -146,6 +149,15 @@ export default function App() {
       setToken(result.token); setUser(result.user); setTab("Home");
     } catch(e) { Alert.alert("Authentication failed",e.message); }
     finally { setBusy(false); }
+  }
+  async function refreshMapLocations() {
+    setMapRefreshing(true);
+    try {
+      const [placesResult, categoryResult] = await Promise.all([api.getLocations(token), api.getCategories(token)]);
+      setLocations(placesResult.locations || placesResult.data || []);
+      setCategories(categoryResult.data || []);
+    } catch(e) { Alert.alert("Could not refresh map",e.message); }
+    finally { setMapRefreshing(false); }
   }
   async function loadNearby() {
     setNearbyLoading(true);
@@ -405,7 +417,72 @@ export default function App() {
       </ScrollView>
     </KeyboardAvoidingView>}
 
-    {tab === "Nearby" && <View style={s.screen}>
+    {tab === "Nearby" && <View style={s.mapScreen}>
+      <View style={s.mapHeader}>
+        <View style={{flex:1}}>
+          <Text style={s.placesTitle}>Explore India</Text>
+          <Text style={s.placesSub}>Your saved places and public community locations.</Text>
+        </View>
+        <TouchableOpacity style={s.mapRefresh} onPress={refreshMapLocations} disabled={mapRefreshing}>
+          {mapRefreshing ? <ActivityIndicator color={C.coral}/> : <Text style={s.mapRefreshText}>↻</Text>}
+        </TouchableOpacity>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.mapFilterScroll} contentContainerStyle={s.mapFilterRow}>
+        {["All",...Array.from(new Set(locations.map(item=>String(item.category || "Other").trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b))].map(name=>{
+          const selected=mapCategory.toLowerCase()===name.toLowerCase();
+          const meta=categories.find(item=>String(item.name).toLowerCase()===name.toLowerCase()) || {};
+          return <TouchableOpacity key={name} onPress={()=>setMapCategory(name)} style={[s.mapFilterChip,selected && s.mapFilterChipActive]}>
+            <Text style={[s.mapFilterText,selected && s.mapFilterTextActive]}>{name==="All" ? "All places" : (meta.icon ? meta.icon+" " : "")+name}</Text>
+          </TouchableOpacity>;
+        })}
+      </ScrollView>
+      <View style={s.mapLegend}>
+        <Text style={s.mapLegendText}>● My private places</Text>
+        <Text style={s.mapLegendPublic}>● Public community places</Text>
+      </View>
+      <View style={s.indiaMapFrame}>
+        <MapView
+          ref={mapOverviewRef}
+          style={s.indiaMap}
+          initialRegion={{latitude:22.8,longitude:79.0,latitudeDelta:27,longitudeDelta:25}}
+          mapType="standard"
+          showsCompass
+          showsScale
+          toolbarEnabled
+          loadingEnabled
+        >
+          {locations.filter(item=>{
+            const coords=item.coordinates && item.coordinates.coordinates;
+            const valid=Array.isArray(coords) && coords.length===2 && Number.isFinite(Number(coords[0])) && Number.isFinite(Number(coords[1]));
+            const matches=mapCategory==="All" || String(item.category || "Other").toLowerCase()===mapCategory.toLowerCase();
+            return valid && matches;
+          }).map(item=>{
+            const coords=item.coordinates.coordinates;
+            const name=String(item.category || "Other");
+            const meta=categories.find(cat=>String(cat.name).toLowerCase()===name.toLowerCase()) || {};
+            const color=/^#[0-9a-f]{6}$/i.test(meta.color || "") ? meta.color : C.coral;
+            const icon=meta.icon || "⌖";
+            return <Marker key={item._id} coordinate={{latitude:Number(coords[1]),longitude:Number(coords[0])}} title={item.title || "Saved place"} description={(item.isOwner===false ? "Public community place" : "My place")+" · "+name}>
+              <View style={[s.indiaMapMarker,{backgroundColor:color,borderColor:item.isPublic===true ? "#FFFFFF" : "#343530"}]}>
+                <Text style={s.indiaMapMarkerIcon}>{icon}</Text>
+              </View>
+            </Marker>;
+          })}
+        </MapView>
+        {mapRefreshing && <View style={s.mapLoadingOverlay}><ActivityIndicator color={C.coral}/><Text style={s.mapLoadingText}>Updating places…</Text></View>}
+      </View>
+      <View style={s.mapFooter}>
+        <Text style={s.mapCount}>{locations.filter(item=>{
+          const coords=item.coordinates && item.coordinates.coordinates;
+          return Array.isArray(coords) && coords.length===2 && (mapCategory==="All" || String(item.category || "Other").toLowerCase()===mapCategory.toLowerCase());
+        }).length} mapped places</Text>
+        <TouchableOpacity onPress={()=>mapOverviewRef.current && mapOverviewRef.current.animateToRegion({latitude:22.8,longitude:79.0,latitudeDelta:27,longitudeDelta:25},450)}>
+          <Text style={s.mapResetText}>Show all India</Text>
+        </TouchableOpacity>
+      </View>
+    </View>}
+
+    {false && <View style={s.screen}>
       <Text style={s.placesTitle}>Nearby places</Text><Text style={s.placesSub}>Discover places around your current location.</Text>
       <View style={s.categoryChoices}>{[{label:"1 km",value:1000},{label:"5 km",value:5000},{label:"10 km",value:10000},{label:"25 km",value:25000}].map(r=><TouchableOpacity key={r.value} onPress={()=>setNearbyRadius(r.value)} style={[s.categoryChoice,nearbyRadius===r.value && s.categoryChoiceActive]}><Text style={[s.categoryChoiceText,nearbyRadius===r.value && s.categoryChoiceTextActive]}>{r.label}</Text></TouchableOpacity>)}</View>
       <Text style={s.label}>Custom distance (km)</Text>
@@ -450,7 +527,7 @@ export default function App() {
     <View style={s.tabs}>
       <TabButton icon="⌂" label="Home" active={tab==="Home"} onPress={()=>setTab("Home")}/>
       <TabButton icon="◫" label="Places" active={tab==="Places"} onPress={()=>setTab("Places")}/>
-      <TabButton icon="⌖" label="Nearby" active={tab==="Nearby"} onPress={()=>setTab("Nearby")}/>
+      <TabButton icon="⌖" label="Map" active={tab==="Nearby"} onPress={()=>setTab("Nearby")}/>
       <TabButton icon="♧" label="Reminders" active={tab==="Reminders"} onPress={()=>setTab("Reminders")}/>
       <TabButton icon="♙" label="Profile" active={tab==="Profile"} onPress={()=>setTab("Profile")}/>
     </View>
@@ -473,6 +550,28 @@ const s = StyleSheet.create({
  authSwitch:{alignItems:"center",paddingVertical:18},authSwitchText:{color:"#A95F45",fontSize:13,fontWeight:"700"},
  privacy:{textAlign:"center",color:C.muted,fontSize:11,marginTop:12},
  screen:{flex:1,paddingHorizontal:18,paddingTop:17,paddingBottom:10},
+ mapScreen:{flex:1,paddingHorizontal:14,paddingTop:14,paddingBottom:8},
+ mapHeader:{flexDirection:"row",alignItems:"center",marginBottom:8},
+ mapRefresh:{width:40,height:40,borderRadius:20,backgroundColor:C.coralPale,alignItems:"center",justifyContent:"center"},
+ mapRefreshText:{fontSize:25,color:C.coral,fontWeight:"700"},
+ mapFilterScroll:{maxHeight:48,flexGrow:0,marginBottom:5},
+ mapFilterRow:{alignItems:"center",paddingRight:8},
+ mapFilterChip:{paddingHorizontal:13,paddingVertical:9,borderRadius:18,backgroundColor:"#EEEDE6",marginRight:7},
+ mapFilterChipActive:{backgroundColor:C.coral},
+ mapFilterText:{fontSize:11,color:"#55564F",fontWeight:"700"},
+ mapFilterTextActive:{color:C.white},
+ mapLegend:{flexDirection:"row",justifyContent:"space-between",paddingVertical:7},
+ mapLegendText:{fontSize:9,color:"#A96C50",fontWeight:"700"},
+ mapLegendPublic:{fontSize:9,color:"#5A8066",fontWeight:"700"},
+ indiaMapFrame:{flex:1,minHeight:260,borderRadius:17,overflow:"hidden",borderWidth:1,borderColor:C.line,backgroundColor:"#EEEDE6"},
+ indiaMap:{flex:1},
+ indiaMapMarker:{minWidth:30,height:30,borderRadius:16,borderWidth:2,alignItems:"center",justifyContent:"center",paddingHorizontal:4,elevation:4},
+ indiaMapMarkerIcon:{color:"#FFFFFF",fontSize:14,fontWeight:"800"},
+ mapLoadingOverlay:{position:"absolute",top:12,left:12,right:12,backgroundColor:"#FFFFFFEE",borderRadius:12,padding:10,flexDirection:"row",alignItems:"center",justifyContent:"center",gap:8},
+ mapLoadingText:{fontSize:11,color:C.ink,fontWeight:"700"},
+ mapFooter:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",paddingVertical:10},
+ mapCount:{fontSize:11,color:C.muted,fontWeight:"700"},
+ mapResetText:{fontSize:11,color:C.coral,fontWeight:"800"},
  eyebrow:{color:C.muted,fontSize:11,letterSpacing:1,fontWeight:"800",marginBottom:7},
  homeTitle:{color:C.ink,fontSize:25,fontWeight:"800",letterSpacing:-0.5,marginBottom:24},
  logCard:{height:218,borderRadius:23,backgroundColor:C.dark,padding:20,overflow:"hidden",marginBottom:13},
