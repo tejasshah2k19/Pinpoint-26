@@ -103,6 +103,7 @@ let indiaOverviewMap = null;
 async function renderIndiaMap() {
   const result = await api("/admin/locations/map");
   const locations = result.data || [];
+  const categoryColors = new Map((result.categories || []).filter(function (category) { return category.name && category.color; }).map(function (category) { return [String(category.name).trim().toLowerCase(), category.color]; }));
   const withCoordinates = locations.filter(function (item) {
     const coords = item.coordinates && item.coordinates.coordinates;
     return Array.isArray(coords) && coords.length === 2 && Number.isFinite(Number(coords[0])) && Number.isFinite(Number(coords[1]));
@@ -125,12 +126,17 @@ async function renderIndiaMap() {
     const coords = item.coordinates.coordinates;
     const latitude = Number(coords[1]), longitude = Number(coords[0]);
     const isPublic = item.isPublic === true;
-    const marker = window.L.circleMarker([latitude, longitude], {
-      radius: 7, color: isPublic ? "#287a55" : "#b66b45",
-      weight: 2, fillColor: isPublic ? "#42a875" : "#d99a70", fillOpacity: 0.9
-    }).addTo(indiaOverviewMap);
+    const categoryName = String(item.category || "Other");
+    const categoryColor = categoryColors.get(categoryName.trim().toLowerCase()) || "#d87955";
+    const markerIcon = window.L.divIcon({
+      className: "india-map-marker-wrap",
+      html: '<span class="india-map-marker-dot" style="--pin-color:' + escapeHtml(categoryColor) + '"></span><span class="india-map-marker-label">' + escapeHtml(item.title || "Untitled place") + '</span>',
+      iconSize: [1, 1],
+      iconAnchor: [5, 5]
+    });
+    const marker = window.L.marker([latitude, longitude], { icon: markerIcon, title: item.title || "Untitled place", riseOnHover: true }).addTo(indiaOverviewMap);
     const owner = item.user && item.user.name ? item.user.name : "Unknown owner";
-    const popup = '<div class="india-map-popup"><b>' + escapeHtml(item.title || "Untitled place") + '</b><span>' + escapeHtml(item.category || "Other") + ' · ' + (isPublic ? "Public" : "Private") + '</span><small>' + escapeHtml(item.address || "No address provided") + '</small><small>Owner: ' + escapeHtml(owner) + '</small><small>' + latitude.toFixed(6) + ', ' + longitude.toFixed(6) + '</small></div>';
+    const popup = '<div class="india-map-popup"><b>' + escapeHtml(item.title || "Untitled place") + '</b><span><i class="india-popup-category-dot" style="background:' + escapeHtml(categoryColor) + '"></i>' + escapeHtml(categoryName) + ' · ' + (isPublic ? "Public" : "Private") + '</span><small>' + escapeHtml(item.address || "No address provided") + '</small><small>Owner: ' + escapeHtml(owner) + '</small><small>' + latitude.toFixed(6) + ', ' + longitude.toFixed(6) + '</small></div>';
     marker.bindPopup(popup);
     bounds.push([latitude, longitude]);
   });
