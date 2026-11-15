@@ -4,8 +4,18 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const authenticate = require("../middleware/auth");
+const rateLimit = require("express-rate-limit");
 
 const router = express.Router();
+
+// Temporary lockout: no more than 5 MPIN attempts from one IP per 15 minutes.
+const mpinLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { success: false, message: "Too many MPIN attempts. Please try again in 15 minutes." }
+});
 
 function createToken(userId) {
   if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is not configured");
@@ -31,7 +41,7 @@ function mpinLookup(mpin) {
 }
 
 // Mobile MPIN sign-in. The lookup is keyed so the six-digit PIN is never stored in plaintext.
-router.post("/mpin-login", async (req, res, next) => {
+router.post("/mpin-login", mpinLoginLimiter, async (req, res, next) => {
   try {
     const mpin = String(req.body.mpin || "");
     if (!/^\d{6}$/.test(mpin)) return res.status(400).json({ success: false, message: "Enter your 6-digit MPIN." });
