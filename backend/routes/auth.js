@@ -43,13 +43,41 @@ function mpinLookup(mpin) {
 // Mobile MPIN sign-in. The lookup is keyed so the six-digit PIN is never stored in plaintext.
 router.post("/mpin-login", mpinLoginLimiter, async (req, res, next) => {
   try {
+    const email = String(req.body.email || "").trim().toLowerCase();
     const mpin = String(req.body.mpin || "");
-    if (!/^\d{6}$/.test(mpin)) return res.status(400).json({ success: false, message: "Enter your 6-digit MPIN." });
-    const user = await User.findOne({ mpinLookup: mpinLookup(mpin) }).select("+mpinHash +mpinLookup");
-    if (!user || !user.mpinHash || !(await bcrypt.compare(mpin, user.mpinHash))) {
-      return res.status(401).json({ success: false, message: "Invalid MPIN." });
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, message: "Enter the email address linked to your account." });
     }
-    if (user.isActive === false) return res.status(403).json({ success: false, message: "This account has been deactivated." });
+    if (!/^\\d{6}$/.test(mpin)) return res.status(400).json({ success: false, message: "Enter your 6-digit MPIN." });
+
+    const user = await User.findOne({ email }).select("+mpinHash +mpinLookup");
+    if (!user || !user.mpinHash || user.isActive === false) {
+      return res.status(401).json({ success: false, message: "Invalid email or MPIN." });
+    }
+
+    const now = new Date();
+    if (user.mpinLockUntil && user.mpinLockUntil > now) {
+      const minutes = Math.max(1, Math.ceil((user.mpinLockUntil - now) / 60000));
+      return res.status(429).json({ success: false, message: `Too many failed attempts for this account. Try again in ${minutes} minute(s).` });
+    }
+
+    const valid = user.mpinLookup === mpinLookup(mpin) && await bcrypt.compare(mpin, user.mpinHash);
+    if (!valid) {
+      if (user.mpinLockUntil && user.mpinLockUntil <= now) user.mpinFailedAttempts = 0;
+      user.mpinFailedAttempts = (user.mpinFailedAttempts || 0) + 1;
+      if (user.mpinFailedAttempts >= 5) {
+        user.mpinLockUntil = new Date(now.getTime() + 15 * 60 * 1000);
+        user.mpinFailedAttempts = 0;
+        await user.save();
+        return res.status(429).json({ success: false, message: "Too many failed MPIN attempts for this account. It is locked for 15 minutes." });
+      }
+      await user.save();
+      return res.status(401).json({ success: false, message: "Invalid email or MPIN." });
+    }
+
+    user.mpinFailedAttempts = 0;
+    user.mpinLockUntil = null;
+    await user.save();
     const activeUser = await applyConfiguredAdmin(user);
     return res.json({ success: true, token: createToken(activeUser._id.toString()), user: publicUser(activeUser) });
   } catch (error) { return next(error); }
