@@ -151,7 +151,7 @@ export default function App() {
     finally { setBusy(false); }
   }
   async function submitMpinLogin() {
-    if (!/^\\d{6}$/.test(loginMpin)) return Alert.alert("Invalid MPIN","Enter your 6-digit MPIN.");
+    if (!/^\d{6}$/.test(loginMpin)) return Alert.alert("Invalid MPIN","Enter your 6-digit MPIN.");
     setBusy(true);
     try {
       const result = await api.loginWithMpin(loginMpin);
@@ -161,7 +161,7 @@ export default function App() {
     finally { setBusy(false); }
   }
   async function saveMpin() {
-    if (!/^\\d{6}$/.test(mpinForm.mpin)) return Alert.alert("Invalid MPIN","Choose exactly 6 digits.");
+    if (!/^\d{6}$/.test(mpinForm.mpin)) return Alert.alert("Invalid MPIN","Choose exactly 6 digits.");
     if (mpinForm.mpin !== mpinForm.confirmMpin) return Alert.alert("MPIN mismatch","Both MPIN entries must match.");
     if (!mpinForm.currentPassword) return Alert.alert("Password required","Enter your current account password.");
     setBusy(true);
@@ -315,7 +315,7 @@ export default function App() {
           <Button title={busy ? "Please wait..." : authMode === "login" ? "Sign in" : "Create account"} onPress={submitAuth} disabled={busy}/>
         </> : <>
           <Text style={s.label}>6-digit MPIN</Text>
-          <Field placeholder="Enter your MPIN" value={loginMpin} onChangeText={v=>setLoginMpin(v.replace(/\\D/g,"").slice(0,6))} keyboardType="numeric" secureTextEntry/>
+          <Field placeholder="Enter your MPIN" value={loginMpin} onChangeText={v=>setLoginMpin(v.replace(/\D/g,"").slice(0,6))} keyboardType="numeric" secureTextEntry/>
           <Button title={busy ? "Please wait..." : "Sign in with MPIN"} onPress={submitMpinLogin} disabled={busy}/>
         </>}
         <TouchableOpacity style={s.authSwitch} onPress={()=>setAuthMode(authMode === "login" ? "register" : "login")}>
@@ -465,9 +465,9 @@ export default function App() {
         <Text style={s.privacyBody}>{user && user.hasMpin ? "Your unique 6-digit MPIN is active. You can change it anytime." : "Create a unique 6-digit MPIN to sign in faster on mobile."}</Text>
         {!showMpinForm ? <TouchableOpacity style={s.mpinAction} onPress={()=>setShowMpinForm(true)}><Text style={s.mpinActionText}>{user && user.hasMpin ? "Change MPIN" : "Set up MPIN"}</Text></TouchableOpacity> : <>
           <Text style={s.label}>New 6-digit MPIN</Text>
-          <Field placeholder="Enter 6 digits" value={mpinForm.mpin} onChangeText={v=>setMpinForm({...mpinForm,mpin:v.replace(/\\D/g,"").slice(0,6)})} keyboardType="numeric" secureTextEntry/>
+          <Field placeholder="Enter 6 digits" value={mpinForm.mpin} onChangeText={v=>setMpinForm({...mpinForm,mpin:v.replace(/\D/g,"").slice(0,6)})} keyboardType="numeric" secureTextEntry/>
           <Text style={s.label}>Confirm MPIN</Text>
-          <Field placeholder="Re-enter MPIN" value={mpinForm.confirmMpin} onChangeText={v=>setMpinForm({...mpinForm,confirmMpin:v.replace(/\\D/g,"").slice(0,6)})} keyboardType="numeric" secureTextEntry/>
+          <Field placeholder="Re-enter MPIN" value={mpinForm.confirmMpin} onChangeText={v=>setMpinForm({...mpinForm,confirmMpin:v.replace(/\D/g,"").slice(0,6)})} keyboardType="numeric" secureTextEntry/>
           <Text style={s.label}>Current account password</Text>
           <Field placeholder="Verify your password" value={mpinForm.currentPassword} onChangeText={v=>setMpinForm({...mpinForm,currentPassword:v})} secureTextEntry/>
           <Button title={busy ? "Saving..." : "Save MPIN"} onPress={saveMpin} disabled={busy}/>
