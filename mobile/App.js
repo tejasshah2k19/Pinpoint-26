@@ -238,8 +238,8 @@ export default function App() {
     finally { setBusy(false); }
   }
   function suggestAddressFromText(text) {
-    const lines = String(text || "").split(/\\n/).map(line=>line.trim()).filter(line=>line.length>3);
-    const candidates = lines.filter(line=>/\\b\\d{5,6}\\b|road|street|rd\\.?|nagar|near|opp\\.?|market|sector|highway|cross|lane|avenue|ahmedabad|surat|mumbai|delhi|gujarat|india/i.test(line));
+    const lines = String(text || "").split(/\n/).map(line=>line.trim()).filter(line=>line.length>3);
+    const candidates = lines.filter(line=>/\b\d{5,6}\b|road|street|rd\.?|nagar|near|opp\.?|market|sector|highway|cross|lane|avenue|ahmedabad|surat|mumbai|delhi|gujarat|india/i.test(line));
     return (candidates.length ? candidates : lines).slice(0,5).join(", ").slice(0,300);
   }
   async function importScreenshot() {
@@ -255,7 +255,7 @@ export default function App() {
       setOcrText(text);
       const address = suggestAddressFromText(text);
       setForm(current=>({...current,address:address || current.address}));
-      const title = text.split(/\\n/).map(line=>line.trim()).find(line=>line.length>2 && line.length<90);
+      const title = text.split(/\n/).map(line=>line.trim()).find(line=>line.length>2 && line.length<90);
       if (title && !form.title.trim()) setForm(current=>({...current,title}));
       Alert.alert("Screenshot read","We extracted visible text. Review the suggested address, then tap Find location from address. OCR can make mistakes.");
     } catch(e) {
