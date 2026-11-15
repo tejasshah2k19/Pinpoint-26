@@ -152,6 +152,7 @@ export default function App() {
     finally { setBusy(false); }
   }
   async function submitMpinLogin() {
+    if (!loginMpinEmail.trim()) return Alert.alert("Email required","Enter the email linked to your Pinpoint account.");
     if (!/^\d{6}$/.test(loginMpin)) return Alert.alert("Invalid MPIN","Enter your 6-digit MPIN.");
     setBusy(true);
     try {
