@@ -5,7 +5,6 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const authenticate = require("../middleware/auth");
 const rateLimit = require("express-rate-limit");
-const { ipKeyGenerator } = require("express-rate-limit");
 
 const router = express.Router();
 
@@ -28,7 +27,10 @@ function accountIpKey(req) {
   const email = String(req.body && req.body.email || "").trim().toLowerCase();
   const accountIdentity = req.userId ? String(req.userId) : email;
   const accountKey = crypto.createHash("sha256").update(accountIdentity || "missing-account").digest("hex");
-  return accountKey + ":" + ipKeyGenerator(req.ip);
+  // req.ip is populated by Express using the configured trust-proxy setting.
+  // Avoid relying on ipKeyGenerator, which is not exported by every v7 build.
+  const ip = String(req.ip || (req.socket && req.socket.remoteAddress) || "unknown");
+  return accountKey + ":" + ip;
 }
 const passwordLoginIpLimiter = rateLimit({
   windowMs: FIFTEEN_MINUTES,
