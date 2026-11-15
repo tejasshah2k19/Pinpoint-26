@@ -161,6 +161,20 @@ export default function App() {
     } catch(e) { Alert.alert("Could not refresh map",e.message); }
     finally { setMapRefreshing(false); }
   }
+  async function navigateToNearbyPlace(item) {
+    const coords=item.coordinates && item.coordinates.coordinates;
+    if(!Array.isArray(coords) || coords.length!==2 || !Number.isFinite(Number(coords[0])) || !Number.isFinite(Number(coords[1]))) {
+      Alert.alert("Location unavailable","This saved place does not have valid map coordinates.");
+      return;
+    }
+    const destination=Number(coords[1])+","+Number(coords[0]);
+    const url="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(destination)+"&travelmode=driving";
+    try {
+      await Linking.openURL(url);
+    } catch(e) {
+      Alert.alert("Could not open navigation","Please make sure Google Maps or a browser is available.");
+    }
+  }
   function distanceFromNearbyOrigin(item) {
     const coords=item.coordinates && item.coordinates.coordinates;
     if(!nearbyOrigin || !Array.isArray(coords) || coords.length!==2) return null;
@@ -541,6 +555,10 @@ export default function App() {
             {!!item.address && <Text style={s.nearbyPlaceAddress}>{item.address}</Text>}
             <Text style={s.nearbyPlaceVisibility}>{item.isPublic ? "PUBLIC COMMUNITY PLACE" : "YOUR PRIVATE PLACE"}</Text>
           </View>
+          <TouchableOpacity style={s.nearbyNavigateButton} onPress={()=>navigateToNearbyPlace(item)} accessibilityRole="button" accessibilityLabel={"Navigate to "+(item.title || "saved place")}>
+            <Text style={s.nearbyNavigateIcon}>➤</Text>
+            <Text style={s.nearbyNavigateLabel}>Go</Text>
+          </TouchableOpacity>
         </View>)}
       </ScrollView>
     </View>}
@@ -645,6 +663,8 @@ const s = StyleSheet.create({
  nearbyResultsHeader:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:10},
  nearbyResultCount:{fontSize:11,color:C.muted,fontWeight:"700"},
  nearbyPlaceCard:{backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:15,padding:15,marginBottom:10,flexDirection:"row"},
+ nearbyNavigateButton:{width:48,alignSelf:"center",marginLeft:10,backgroundColor:C.coralPale,borderRadius:13,alignItems:"center",justifyContent:"center",paddingVertical:11},
+ nearbyNavigateIcon:{fontSize:21,color:C.coral,fontWeight:"900"},nearbyNavigateLabel:{fontSize:10,color:C.coral,fontWeight:"800",marginTop:3},
  nearbyPlaceTitle:{fontSize:15,fontWeight:"800",color:C.ink,marginBottom:4},
  nearbyPlaceCategory:{fontSize:12,color:C.coral,fontWeight:"700",marginBottom:5},
  nearbyDistance:{fontSize:12,color:C.ink,fontWeight:"800",marginBottom:6},
