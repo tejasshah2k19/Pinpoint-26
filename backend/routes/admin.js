@@ -169,6 +169,16 @@ router.patch("/users/:id", async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+router.get("/locations/map", async (req, res, next) => {
+  try {
+    const locations = await Location.find({
+      "coordinates.coordinates.0": { $exists: true },
+      "coordinates.coordinates.1": { $exists: true }
+    }).select("title category address coordinates isPublic user").populate("user", "name").limit(20000).lean();
+    return res.json({ success: true, data: locations });
+  } catch (error) { return next(error); }
+});
+
 router.get("/locations", async (req, res, next) => {
   try {
     const { page, limit, skip } = pageParams(req.query);
