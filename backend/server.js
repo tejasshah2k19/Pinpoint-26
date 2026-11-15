@@ -9,6 +9,8 @@ const path = require("path");
 const User = require("./models/User");
 
 const app = express();
+// Render runs behind a trusted reverse proxy; use the client IP for rate limits.
+app.set("trust proxy", 1);
 
 app.use(helmet({
   contentSecurityPolicy: {
