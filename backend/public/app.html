@@ -3,7 +3,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#FAFAF5"><meta name="description" content="Pinpoint — save, discover and navigate places.">
 <link rel="manifest" href="/app-assets/manifest.webmanifest"><link rel="icon" href="/app-assets/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/app-assets/icon.svg">
-<link rel="stylesheet" href="/app-assets/app.css"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="/app-assets/app.css?v=3"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><title>Pinpoint</title></head>
 <body>
 <div id="loading" class="loading"><span class="brand-mark">⌖</span><p>Restoring your Pinpoint session…</p></div>
@@ -31,4 +31,4 @@
 <section id="screen-Profile" class="screen hidden"><h1>Profile</h1><p class="sub">Your Pinpoint account and preferences.</p><div class="profile-card"><div class="avatar" id="avatar">P</div><h2 id="profileName"></h2><p id="profileEmail" class="muted"></p></div><div class="privacy-card"><h3>Your places are private</h3><p>Your saved locations stay connected to your account. You choose when to share them.</p></div><button id="signOut" class="secondary wide">Sign out</button><div class="danger-zone"><h3>Danger zone</h3><p>Permanently disable your Pinpoint account. You will lose access and will not be able to sign in again.</p><button id="deleteAccount" class="danger wide">⚠ Delete my account</button></div></section>
 </main>
 <nav id="tabs" class="bottom-tabs"><button data-tab="Home" class="tab active"><span>⌂</span><small>Home</small></button><button data-tab="Places" class="tab"><span>◫</span><small>Places</small></button><button data-tab="Map" class="tab"><span>⌖</span><small>Map</small></button><button data-tab="Nearby" class="tab"><span>◎</span><small>Nearby</small></button><button data-tab="Profile" class="tab"><span>♙</span><small>Profile</small></button></nav>
-</div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="/app-assets/app.js" defer></script></body></html>
+</div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="/app-assets/app.js?v=3" defer></script><script>window.setTimeout(function(){var l=document.getElementById("loading");if(l&&!l.classList.contains("hidden")){l.classList.add("hidden");document.getElementById("auth").classList.remove("hidden");var m=document.getElementById("authMessage");if(m)m.textContent="Session restore is taking longer than expected. Please sign in; your saved session will be checked again."}},12000);</script></body></html>
