@@ -159,13 +159,13 @@ export default function App() {
     } catch(e) { Alert.alert("Could not refresh map",e.message); }
     finally { setMapRefreshing(false); }
   }
-  async function loadNearby() {
+  async function loadNearby(distance = nearbyRadius) {
     setNearbyLoading(true);
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if(permission.status !== "granted") { Alert.alert("Location permission","Allow location access to find places near you."); return; }
       const current = await Location.getCurrentPositionAsync({accuracy:Location.Accuracy.Balanced});
-      const result = await api.getNearbyLocations(token,current.coords.latitude,current.coords.longitude,nearbyRadius);
+      const result = await api.getNearbyLocations(token,current.coords.latitude,current.coords.longitude,distance);
       setNearbyLocations(result.locations || []);
     } catch(e) { Alert.alert("Nearby places unavailable",e.message); }
     finally { setNearbyLoading(false); }
@@ -482,6 +482,45 @@ export default function App() {
       </View>
     </View>}
 
+    {tab === "NearbyPlaces" && <View style={s.screen}>
+      <Text style={s.placesTitle}>Nearby places</Text>
+      <Text style={s.placesSub}>Discover your saved and public community places around your current location.</Text>
+      <View style={s.nearbyRadiusCard}>
+        <Text style={s.nearbySectionTitle}>Search radius</Text>
+        <View style={s.nearbyRadiusOptions}>
+          {[5,10,50].map(km=><TouchableOpacity key={km} style={[s.nearbyRadiusChip,nearbyRadius===km*1000 && s.nearbyRadiusChipActive]} onPress={()=>setNearbyRadius(km*1000)}>
+            <Text style={[s.nearbyRadiusText,nearbyRadius===km*1000 && s.nearbyRadiusTextActive]}>{km} km</Text>
+          </TouchableOpacity>)}
+        </View>
+        <Text style={s.label}>Custom distance (km)</Text>
+        <View style={s.customRadiusRow}>
+          <TextInput style={s.customRadiusInput} value={nearbyCustomKm} onChangeText={setNearbyCustomKm} keyboardType="decimal-pad" placeholder="Enter distance in km"/>
+          <TouchableOpacity style={s.customRadiusApply} onPress={()=>{
+            const km=Number(nearbyCustomKm);
+            if(!Number.isFinite(km)||km<=0||km>1000) return Alert.alert("Invalid distance","Enter a distance greater than 0 and up to 1000 km.");
+            setNearbyRadius(Math.round(km*1000));
+          }}><Text style={{color:C.white,fontWeight:"800",fontSize:12}}>Apply</Text></TouchableOpacity>
+        </View>
+        <Button title={nearbyLoading ? "Searching..." : "Find nearby places"} onPress={()=>loadNearby()} disabled={nearbyLoading}/>
+      </View>
+      <View style={s.nearbyResultsHeader}>
+        <Text style={s.nearbySectionTitle}>Results</Text>
+        <Text style={s.nearbyResultCount}>{nearbyLocations.length} places</Text>
+      </View>
+      <ScrollView style={{flex:1}} contentContainerStyle={{paddingBottom:18}} showsVerticalScrollIndicator={false}>
+        {nearbyLoading && <ActivityIndicator color={C.coral} style={{marginTop:20}}/>}
+        {!nearbyLoading && nearbyLocations.length===0 && <View style={s.empty}><Text style={s.emptyIcon}>⌖</Text><Text style={s.emptyText}>No nearby places loaded</Text><Text style={s.reminderHint}>Choose a radius and tap Find nearby places.</Text></View>}
+        {nearbyLocations.map(item=><View key={item._id} style={s.nearbyPlaceCard}>
+          <View style={{flex:1}}>
+            <Text style={s.nearbyPlaceTitle}>{item.title || "Saved place"}</Text>
+            <Text style={s.nearbyPlaceCategory}>{item.category || "Other"}</Text>
+            {!!item.address && <Text style={s.nearbyPlaceAddress}>{item.address}</Text>}
+            <Text style={s.nearbyPlaceVisibility}>{item.isPublic ? "PUBLIC COMMUNITY PLACE" : "YOUR PRIVATE PLACE"}</Text>
+          </View>
+        </View>)}
+      </ScrollView>
+    </View>}
+
     {tab === "Reminders" && <View style={s.screen}><Text style={s.placesTitle}>Reminders</Text><Text style={s.placesSub}>A little nudge to revisit the places that matter.</Text><View style={s.empty}><Text style={s.emptyIcon}>♧</Text><Text style={s.emptyText}>No reminders yet</Text><Text style={s.reminderHint}>Reminder scheduling is coming soon.</Text></View></View>}
 
     {tab === "Profile" && <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={8}><ScrollView contentContainerStyle={{paddingBottom:32}} keyboardShouldPersistTaps="handled"><Text style={s.placesTitle}>Profile</Text><Text style={s.placesSub}>Your Pinpoint account and preferences.</Text>
@@ -501,6 +540,7 @@ export default function App() {
       <TabButton icon="⌂" label="Home" active={tab==="Home"} onPress={()=>setTab("Home")}/>
       <TabButton icon="◫" label="Places" active={tab==="Places"} onPress={()=>setTab("Places")}/>
       <TabButton icon="⌖" label="Map" active={tab==="Nearby"} onPress={()=>setTab("Nearby")}/>
+      <TabButton icon="◎" label="Nearby" active={tab==="NearbyPlaces"} onPress={()=>setTab("NearbyPlaces")}/>
       <TabButton icon="♧" label="Reminders" active={tab==="Reminders"} onPress={()=>setTab("Reminders")}/>
       <TabButton icon="♙" label="Profile" active={tab==="Profile"} onPress={()=>setTab("Profile")}/>
     </View>
@@ -572,6 +612,20 @@ const s = StyleSheet.create({
  tabs:{flexDirection:"row",backgroundColor:C.paper,borderTopWidth:1,borderTopColor:C.line,paddingTop:9,paddingBottom:Platform.OS==="ios"?18:10},
  tabButton:{flex:1,alignItems:"center",justifyContent:"center"},tabIcon:{color:"#96978F",fontSize:22,marginBottom:2},tabLabel:{color:"#96978F",fontSize:10},active:{color:C.coral,fontWeight:"800"},
  back:{color:"#A9674F",fontWeight:"700",marginBottom:17,fontSize:14},locationStatus:{color:C.muted,fontSize:11,textAlign:"center",marginVertical:8},
+ nearbyRadiusCard:{backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:16,padding:15,marginTop:16,marginBottom:16},
+ nearbySectionTitle:{fontSize:14,fontWeight:"800",color:C.ink},
+ nearbyRadiusOptions:{flexDirection:"row",gap:9,marginTop:12,marginBottom:8},
+ nearbyRadiusChip:{paddingHorizontal:18,paddingVertical:10,borderRadius:20,backgroundColor:"#EEEDE6"},
+ nearbyRadiusChipActive:{backgroundColor:C.coral},
+ nearbyRadiusText:{fontSize:12,fontWeight:"800",color:"#55564F"},
+ nearbyRadiusTextActive:{color:C.white},
+ nearbyResultsHeader:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:10},
+ nearbyResultCount:{fontSize:11,color:C.muted,fontWeight:"700"},
+ nearbyPlaceCard:{backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:15,padding:15,marginBottom:10,flexDirection:"row"},
+ nearbyPlaceTitle:{fontSize:15,fontWeight:"800",color:C.ink,marginBottom:4},
+ nearbyPlaceCategory:{fontSize:12,color:C.coral,fontWeight:"700",marginBottom:5},
+ nearbyPlaceAddress:{fontSize:12,color:C.muted,lineHeight:17},
+ nearbyPlaceVisibility:{fontSize:9,color:"#5A8066",fontWeight:"800",letterSpacing:.5,marginTop:7},
  customRadiusRow:{flexDirection:"row",alignItems:"center",gap:8,marginBottom:3},
  customRadiusInput:{flex:1,backgroundColor:"#F2F1EB",borderWidth:1,borderColor:"#E6E4DC",borderRadius:14,paddingHorizontal:14,paddingVertical:13,fontSize:13,color:C.ink},
  customRadiusApply:{backgroundColor:C.dark,borderRadius:13,paddingHorizontal:20,paddingVertical:14,alignItems:"center",justifyContent:"center"},
