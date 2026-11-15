@@ -545,8 +545,6 @@ export default function App() {
       </ScrollView>
     </View>}
 
-    {tab === "Reminders" && <View style={s.screen}><Text style={s.placesTitle}>Reminders</Text><Text style={s.placesSub}>A little nudge to revisit the places that matter.</Text><View style={s.empty}><Text style={s.emptyIcon}>♧</Text><Text style={s.emptyText}>No reminders yet</Text><Text style={s.reminderHint}>Reminder scheduling is coming soon.</Text></View></View>}
-
     {tab === "Profile" && <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={8}><ScrollView contentContainerStyle={{paddingBottom:32}} keyboardShouldPersistTaps="handled"><Text style={s.placesTitle}>Profile</Text><Text style={s.placesSub}>Your Pinpoint account and preferences.</Text>
       <View style={s.profileCard}><View style={s.avatar}><Text style={s.avatarText}>{firstName.charAt(0).toUpperCase()}</Text></View><Text style={s.profileName}>{user && user.name || "Pinpoint user"}</Text><Text style={s.profileEmail}>{user && user.email || ""}</Text></View>
       <View style={s.privacyCard}><Text style={s.privacyTitle}>Your places are private</Text><Text style={s.privacyBody}>Your saved locations stay connected to your account. You choose when to share them.</Text></View>
@@ -565,7 +563,6 @@ export default function App() {
       <TabButton icon="◫" label="Places" active={tab==="Places"} onPress={()=>setTab("Places")}/>
       <TabButton icon="⌖" label="Map" active={tab==="Nearby"} onPress={()=>setTab("Nearby")}/>
       <TabButton icon="◎" label="Nearby" active={tab==="NearbyPlaces"} onPress={()=>setTab("NearbyPlaces")}/>
-      <TabButton icon="♧" label="Reminders" active={tab==="Reminders"} onPress={()=>setTab("Reminders")}/>
       <TabButton icon="♙" label="Profile" active={tab==="Profile"} onPress={()=>setTab("Profile")}/>
     </View>
   </SafeAreaView>;
