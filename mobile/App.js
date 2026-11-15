@@ -65,11 +65,6 @@ export default function App() {
   const [user,setUser] = useState(null);
   const [authMode,setAuthMode] = useState("login");
   const [auth,setAuth] = useState({name:"",email:"",password:""});
-  const [loginMethod,setLoginMethod] = useState("password");
-  const [loginMpin,setLoginMpin] = useState("");
-  const [loginMpinEmail,setLoginMpinEmail] = useState("");
-  const [mpinForm,setMpinForm] = useState({mpin:"",confirmMpin:"",currentPassword:""});
-  const [showMpinForm,setShowMpinForm] = useState(false);
   const [tab,setTab] = useState("Home");
   const [locations,setLocations] = useState([]);
   const [nearbyLocations,setNearbyLocations] = useState([]);
@@ -150,31 +145,6 @@ export default function App() {
       await AsyncStorage.setItem("pinpoint_session_token", result.token);
       setToken(result.token); setUser(result.user); setTab("Home");
     } catch(e) { Alert.alert("Authentication failed",e.message); }
-    finally { setBusy(false); }
-  }
-  async function submitMpinLogin() {
-    if (!loginMpinEmail.trim()) return Alert.alert("Email required","Enter the email linked to your Pinpoint account.");
-    if (!/^\d{6}$/.test(loginMpin)) return Alert.alert("Invalid MPIN","Enter your 6-digit MPIN.");
-    setBusy(true);
-    try {
-      const result = await api.loginWithMpin(loginMpinEmail.trim(),loginMpin);
-      await AsyncStorage.setItem("pinpoint_session_token", result.token);
-      setToken(result.token); setUser(result.user); setTab("Home"); setLoginMpin(""); setLoginMpinEmail("");
-    } catch(e) { Alert.alert("MPIN sign-in failed",e.message); }
-    finally { setBusy(false); }
-  }
-  async function saveMpin() {
-    if (!/^\d{6}$/.test(mpinForm.mpin)) return Alert.alert("Invalid MPIN","Choose exactly 6 digits.");
-    if (mpinForm.mpin !== mpinForm.confirmMpin) return Alert.alert("MPIN mismatch","Both MPIN entries must match.");
-    if (!mpinForm.currentPassword) return Alert.alert("Password required","Enter your current account password.");
-    setBusy(true);
-    try {
-      const result = await api.setMpin(token,mpinForm);
-      setUser(current=>({...current,hasMpin:true}));
-      setMpinForm({mpin:"",confirmMpin:"",currentPassword:""});
-      setShowMpinForm(false);
-      Alert.alert("MPIN saved",result.message || "You can now sign in using your MPIN.");
-    } catch(e) { Alert.alert("Could not save MPIN",e.message); }
     finally { setBusy(false); }
   }
   async function loadNearby() {
@@ -316,24 +286,14 @@ export default function App() {
         <Text style={s.brandWord}>PINPOINT</Text>
         <Text style={s.authTitle}>Your places,{"\n"}remembered.</Text>
         <Text style={s.authSub}>Capture the spots worth coming back to, with exact GPS coordinates.</Text>
-        {authMode === "login" && <View style={s.categoryChoices}>
-          <TouchableOpacity style={[s.categoryChoice,loginMethod==="password" && s.categoryChoiceActive]} onPress={()=>setLoginMethod("password")}><Text style={[s.categoryChoiceText,loginMethod==="password" && s.categoryChoiceTextActive]}>Email & Password</Text></TouchableOpacity>
-          <TouchableOpacity style={[s.categoryChoice,loginMethod==="mpin" && s.categoryChoiceActive]} onPress={()=>setLoginMethod("mpin")}><Text style={[s.categoryChoiceText,loginMethod==="mpin" && s.categoryChoiceTextActive]}>MPIN</Text></TouchableOpacity>
-        </View>}
-        {authMode === "register" || loginMethod === "password" ? <>
+        <>
           {authMode === "register" && <View><Text style={s.label}>Your name</Text><Field placeholder="Your name" value={auth.name} onChangeText={v=>setAuth({...auth,name:v})}/></View>}
           <Text style={s.label}>Email address</Text>
           <Field placeholder="you@example.com" value={auth.email} onChangeText={v=>setAuth({...auth,email:v})} keyboardType="email-address"/>
           <Text style={s.label}>Password</Text>
           <Field placeholder="At least 8 characters" value={auth.password} onChangeText={v=>setAuth({...auth,password:v})} secureTextEntry/>
           <Button title={busy ? "Please wait..." : authMode === "login" ? "Sign in" : "Create account"} onPress={submitAuth} disabled={busy}/>
-        </> : <>
-          <Text style={s.label}>Email address</Text>
-          <Field placeholder="you@example.com" value={loginMpinEmail} onChangeText={setLoginMpinEmail} keyboardType="email-address"/>
-          <Text style={s.label}>6-digit MPIN</Text>
-          <Field placeholder="Enter your MPIN" value={loginMpin} onChangeText={v=>setLoginMpin(v.replace(/\D/g,"").slice(0,6))} keyboardType="numeric" secureTextEntry/>
-          <Button title={busy ? "Please wait..." : "Sign in with MPIN"} onPress={submitMpinLogin} disabled={busy}/>
-        </>}
+        </>
         <TouchableOpacity style={s.authSwitch} onPress={()=>setAuthMode(authMode === "login" ? "register" : "login")}>
           <Text style={s.authSwitchText}>{authMode === "login" ? "New to Pinpoint? Create an account" : "Already have an account? Sign in"}</Text>
         </TouchableOpacity>
@@ -477,20 +437,6 @@ export default function App() {
     {tab === "Profile" && <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={8}><ScrollView contentContainerStyle={{paddingBottom:32}} keyboardShouldPersistTaps="handled"><Text style={s.placesTitle}>Profile</Text><Text style={s.placesSub}>Your Pinpoint account and preferences.</Text>
       <View style={s.profileCard}><View style={s.avatar}><Text style={s.avatarText}>{firstName.charAt(0).toUpperCase()}</Text></View><Text style={s.profileName}>{user && user.name || "Pinpoint user"}</Text><Text style={s.profileEmail}>{user && user.email || ""}</Text></View>
       <View style={s.privacyCard}><Text style={s.privacyTitle}>Your places are private</Text><Text style={s.privacyBody}>Your saved locations stay connected to your account. You choose when to share them.</Text></View>
-      <View style={s.mpinCard}>
-        <Text style={s.privacyTitle}>Mobile MPIN</Text>
-        <Text style={s.privacyBody}>{user && user.hasMpin ? "Your unique 6-digit MPIN is active. You can change it anytime." : "Create a unique 6-digit MPIN to sign in faster on mobile."}</Text>
-        {!showMpinForm ? <TouchableOpacity style={s.mpinAction} onPress={()=>setShowMpinForm(true)}><Text style={s.mpinActionText}>{user && user.hasMpin ? "Change MPIN" : "Set up MPIN"}</Text></TouchableOpacity> : <>
-          <Text style={s.label}>New 6-digit MPIN</Text>
-          <Field placeholder="Enter 6 digits" value={mpinForm.mpin} onChangeText={v=>setMpinForm({...mpinForm,mpin:v.replace(/\D/g,"").slice(0,6)})} keyboardType="numeric" secureTextEntry/>
-          <Text style={s.label}>Confirm MPIN</Text>
-          <Field placeholder="Re-enter MPIN" value={mpinForm.confirmMpin} onChangeText={v=>setMpinForm({...mpinForm,confirmMpin:v.replace(/\D/g,"").slice(0,6)})} keyboardType="numeric" secureTextEntry/>
-          <Text style={s.label}>Current account password</Text>
-          <Field placeholder="Verify your password" value={mpinForm.currentPassword} onChangeText={v=>setMpinForm({...mpinForm,currentPassword:v})} secureTextEntry/>
-          <Button title={busy ? "Saving..." : "Save MPIN"} onPress={saveMpin} disabled={busy}/>
-          <TouchableOpacity style={s.authSwitch} onPress={()=>{setShowMpinForm(false);setMpinForm({mpin:"",confirmMpin:"",currentPassword:""});}}><Text style={s.authSwitchText}>Cancel</Text></TouchableOpacity>
-        </>}
-      </View>
       <TouchableOpacity style={s.logout} onPress={async()=>{await AsyncStorage.multiRemove(["pinpoint_session_token"]);setToken("");setUser(null);setLocations([]);setNearbyLocations([]);setTab("Home");setAuth({name:"",email:"",password:""});}}><Text style={s.logoutText}>Sign out</Text></TouchableOpacity>
       <View style={s.dangerZone}>
         <Text style={s.dangerTitle}>Danger zone</Text>
