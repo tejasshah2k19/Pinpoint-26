@@ -225,6 +225,28 @@ export default function App() {
       {text:"Delete",style:"destructive",onPress:async()=>{try{await api.deleteLocation(token,id);await loadLocations(token);}catch(e){Alert.alert("Delete failed",e.message);}}}
     ]);
   }
+
+  function requestAccountDeletion() {
+    Alert.alert(
+      "⚠️ Deactivate your account?",
+      "This will sign you out and permanently block this account from logging in on the mobile app and website. Your saved records will be retained, not permanently erased. This action cannot be undone from the app.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Deactivate account", style: "destructive", onPress: async () => {
+          setBusy(true);
+          try {
+            await api.deleteAccount(token);
+            await AsyncStorage.multiRemove(["pinpoint_session_token"]);
+            setToken(""); setUser(null); setLocations([]); setNearbyLocations([]);
+            setTab("Home"); setAuth({name:"",email:"",password:""});
+            Alert.alert("Account deactivated","Your Pinpoint account has been deactivated. You can no longer sign in.");
+          } catch (e) {
+            Alert.alert("Could not deactivate account",e.message);
+          } finally { setBusy(false); }
+        }}
+      ]
+    );
+  }
   const categoryNames = useMemo(() => {
     const names = [...categories.map(item=>typeof item === "string" ? item : item.name), ...locations.map(item=>item.category), ...DEFAULT_CATEGORIES].filter(Boolean);
     const seen = new Set();
@@ -402,6 +424,13 @@ export default function App() {
       <View style={s.profileCard}><View style={s.avatar}><Text style={s.avatarText}>{firstName.charAt(0).toUpperCase()}</Text></View><Text style={s.profileName}>{user && user.name || "Pinpoint user"}</Text><Text style={s.profileEmail}>{user && user.email || ""}</Text></View>
       <View style={s.privacyCard}><Text style={s.privacyTitle}>Your places are private</Text><Text style={s.privacyBody}>Your saved locations stay connected to your account. You choose when to share them.</Text></View>
       <TouchableOpacity style={s.logout} onPress={async()=>{await AsyncStorage.multiRemove(["pinpoint_session_token"]);setToken("");setUser(null);setLocations([]);setNearbyLocations([]);setTab("Home");setAuth({name:"",email:"",password:""});}}><Text style={s.logoutText}>Sign out</Text></TouchableOpacity>
+      <View style={s.dangerZone}>
+        <Text style={s.dangerTitle}>Danger zone</Text>
+        <Text style={s.dangerDescription}>Deactivate your Pinpoint account and block future sign-ins on every device. Saved records are retained.</Text>
+        <TouchableOpacity style={s.deleteAccountButton} onPress={requestAccountDeletion} disabled={busy}>
+          <Text style={s.deleteAccountText}>{busy ? "Please wait…" : "⚠️  Delete my account"}</Text>
+        </TouchableOpacity>
+      </View>
     </View>}
     <View style={s.tabs}>
       <TabButton icon="⌂" label="Home" active={tab==="Home"} onPress={()=>setTab("Home")}/>
@@ -464,7 +493,7 @@ const s = StyleSheet.create({
  avatar:{width:58,height:58,borderRadius:29,backgroundColor:C.coralPale,alignItems:"center",justifyContent:"center",marginBottom:10},avatarText:{color:C.coral,fontSize:24,fontWeight:"800"},
  profileName:{color:C.ink,fontSize:16,fontWeight:"800"},profileEmail:{color:C.muted,fontSize:12,marginTop:4},
  privacyCard:{backgroundColor:"#F2F1EB",borderRadius:16,padding:16,marginTop:14},privacyTitle:{color:C.ink,fontSize:13,fontWeight:"800",marginBottom:5},
- privacyBody:{color:C.muted,fontSize:12,lineHeight:18},logout:{borderWidth:1,borderColor:C.line,borderRadius:14,padding:14,alignItems:"center",marginTop:18},logoutText:{color:C.red,fontSize:13,fontWeight:"800"},
+ privacyBody:{color:C.muted,fontSize:12,lineHeight:18},dangerZone:{backgroundColor:"#FFF3F0",borderWidth:1,borderColor:"#EBC5BD",borderRadius:16,padding:16,marginTop:18},dangerTitle:{color:"#9F3F35",fontSize:13,fontWeight:"800",marginBottom:5},dangerDescription:{color:"#8D5B55",fontSize:11,lineHeight:17},deleteAccountButton:{borderWidth:1,borderColor:"#B7443C",borderRadius:12,padding:13,alignItems:"center",marginTop:12,backgroundColor:"#FFF9F7"},deleteAccountText:{color:"#B7443C",fontSize:12,fontWeight:"800"},logout:{borderWidth:1,borderColor:C.line,borderRadius:14,padding:14,alignItems:"center",marginTop:18},logoutText:{color:C.red,fontSize:13,fontWeight:"800"},
  categoryDropdown:{backgroundColor:"#F2F1EB",borderWidth:1,borderColor:"#E6E4DC",borderRadius:14,paddingHorizontal:14,paddingVertical:14,marginBottom:8,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},
  categoryDropdownText:{color:C.ink,fontSize:14,fontWeight:"600"},categoryDropdownArrow:{color:C.muted,fontSize:18},
  categoryDropdownMenu:{backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:14,marginBottom:12,overflow:"hidden"},
