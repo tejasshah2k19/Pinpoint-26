@@ -1,10 +1,17 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const Location = require("../models/Location");
+const User = require("../models/User");
 const authenticate = require("../middleware/auth");
 
 const router = express.Router();
 router.use(authenticate);
+
+async function visibleLocationFilter(userId) {
+  // Public places are visible only while their owner account is active.
+  const activeUserIds = await User.distinct("_id", { isActive: { $ne: false } });
+  return { $or: [{ user: userId }, { isPublic: true, user: { $in: activeUserIds } }] };
+}
 
 function locationInput(body) {
   const input = {};
@@ -40,9 +47,8 @@ router.post("/", async (req, res, next) => {
 
 router.get("/", async (req, res, next) => {
   try {
-    const records = await Location.find({
-      $or: [{ user: req.userId }, { isPublic: true }]
-    }).sort({ createdAt: -1 });
+    const visibilityFilter = await visibleLocationFilter(req.userId);
+    const records = await Location.find(visibilityFilter).sort({ createdAt: -1 });
     const locations = records.map((location) => {
       const item = location.toObject();
       item.isOwner = String(location.user) === String(req.userId);
@@ -67,8 +73,9 @@ router.get("/nearby", async (req, res, next) => {
         longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
       return res.status(400).json({ success: false, message: "Valid longitude and latitude are required" });
     }
+    const visibilityFilter = await visibleLocationFilter(req.userId);
     const locations = await Location.find({
-      $or: [{ user: req.userId }, { isPublic: true }],
+      ...visibilityFilter,
       coordinates: {
         $near: {
           $geometry: { type: "Point", coordinates: [longitude, latitude] },
@@ -85,10 +92,8 @@ router.get("/nearby", async (req, res, next) => {
 router.get("/:id", async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, message: "Invalid location ID" });
-    const location = await Location.findOne({
-      _id: req.params.id,
-      $or: [{ user: req.userId }, { isPublic: true }]
-    });
+    const visibilityFilter = await visibleLocationFilter(req.userId);
+    const location = await Location.findOne({ _id: req.params.id, ...visibilityFilter });
     if (!location) return res.status(404).json({ success: false, message: "Location not found" });
     const item = location.toObject();
     item.isOwner = String(location.user) === String(req.userId);
