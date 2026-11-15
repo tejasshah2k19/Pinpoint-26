@@ -228,8 +228,8 @@ export default function App() {
 
   function requestAccountDeletion() {
     Alert.alert(
-      "⚠️ Deactivate your account?",
-      "This will sign you out and permanently block this account from logging in on the mobile app and website. Your saved records will be retained, not permanently erased. This action cannot be undone from the app.",
+      "⚠️ Permanently delete your account?",
+      "Your account will be permanently disabled. You will lose access to Pinpoint and will not be able to sign in again. This action cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Deactivate account", style: "destructive", onPress: async () => {
@@ -425,7 +425,7 @@ export default function App() {
       <TouchableOpacity style={s.logout} onPress={async()=>{await AsyncStorage.multiRemove(["pinpoint_session_token"]);setToken("");setUser(null);setLocations([]);setNearbyLocations([]);setTab("Home");setAuth({name:"",email:"",password:""});}}><Text style={s.logoutText}>Sign out</Text></TouchableOpacity>
       <View style={s.dangerZone}>
         <Text style={s.dangerTitle}>Danger zone</Text>
-        <Text style={s.dangerDescription}>Deactivate your Pinpoint account and block future sign-ins on every device. Saved records are retained.</Text>
+        <Text style={s.dangerDescription}>Permanently disable your Pinpoint account. You will lose access and will not be able to sign in again.</Text>
         <TouchableOpacity style={s.deleteAccountButton} onPress={requestAccountDeletion} disabled={busy}>
           <Text style={s.deleteAccountText}>{busy ? "Please wait…" : "⚠️  Delete my account"}</Text>
         </TouchableOpacity>
