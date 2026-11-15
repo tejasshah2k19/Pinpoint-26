@@ -5,6 +5,8 @@ import {
   TouchableOpacity, View
 } from "react-native";
 import * as Location from "expo-location";
+import * as ImagePicker from "expo-image-picker";
+import TextRecognition from "@react-native-ml-kit/text-recognition";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MapView, { Marker } from "react-native-maps";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
@@ -91,6 +93,8 @@ export default function App() {
     if (mapRef.current) mapRef.current.animateToRegion({ ...next, latitudeDelta: 0.008, longitudeDelta: 0.008 }, 350);
   }
   const [busy,setBusy] = useState(false);
+  const [ocrBusy,setOcrBusy] = useState(false);
+  const [ocrText,setOcrText] = useState("");
   const [loading,setLoading] = useState(false);
   const [search,setSearch] = useState("");
   const [category,setCategory] = useState("All");
@@ -209,14 +213,14 @@ export default function App() {
     setEditingId(null);
     setForm({title:"",category:(categories[0] && categories[0].name) || "Food",address:"",notes:"",isPublic:false});
     setShowCustomCategory(false); setCustomCategoryName(""); setCategoryDropdownOpen(false);
-    setPosition(null); setTab("Capture");
+    setPosition(null); setOcrText(""); setTab("Capture");
   }
   function editPlace(item) {
     const coords = item.coordinates && item.coordinates.coordinates || [];
     setEditingId(item._id); setForm({title:item.title || "",category:item.category || "Other",address:item.address || "",notes:item.notes || "",isPublic:item.isPublic === true});
     setShowCustomCategory(false); setCustomCategoryName(""); setCategoryDropdownOpen(false);
     const existingPosition = coords.length === 2 ? {latitude:coords[1],longitude:coords[0]} : null;
-    setPosition(existingPosition); setTab("Capture");
+    setPosition(existingPosition); setOcrText(""); setTab("Capture");
   }
   async function addCustomCategory() {
     const name = customCategoryName.trim().replace(/\s+/g, " ");
@@ -232,6 +236,31 @@ export default function App() {
       Alert.alert(result.alreadyExists ? "Category already available" : "Category added",result.alreadyExists ? "An existing category with the same name has been selected." : "This category is now available in the category dropdown.");
     } catch(e) { Alert.alert("Could not add category",e.message); }
     finally { setBusy(false); }
+  }
+  function suggestAddressFromText(text) {
+    const lines = String(text || "").split(/\\n/).map(line=>line.trim()).filter(line=>line.length>3);
+    const candidates = lines.filter(line=>/\\b\\d{5,6}\\b|road|street|rd\\.?|nagar|near|opp\\.?|market|sector|highway|cross|lane|avenue|ahmedabad|surat|mumbai|delhi|gujarat|india/i.test(line));
+    return (candidates.length ? candidates : lines).slice(0,5).join(", ").slice(0,300);
+  }
+  async function importScreenshot() {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) return Alert.alert("Photo permission needed","Allow photo-library access to read a screenshot you select.");
+      const picked = await ImagePicker.launchImageLibraryAsync({mediaTypes:["images"],allowsEditing:false,quality:1});
+      if (picked.canceled || !picked.assets || !picked.assets[0]) return;
+      setOcrBusy(true);
+      const result = await TextRecognition.recognize(picked.assets[0].uri);
+      const text = String(result.text || "").trim();
+      if (!text) return Alert.alert("No text found","Try a clearer screenshot where the place name or address is visible.");
+      setOcrText(text);
+      const address = suggestAddressFromText(text);
+      setForm(current=>({...current,address:address || current.address}));
+      const title = text.split(/\\n/).map(line=>line.trim()).find(line=>line.length>2 && line.length<90);
+      if (title && !form.title.trim()) setForm(current=>({...current,title}));
+      Alert.alert("Screenshot read","We extracted visible text. Review the suggested address, then tap Find location from address. OCR can make mistakes.");
+    } catch(e) {
+      Alert.alert("Could not read screenshot",e.message || "Please try another image.");
+    } finally { setOcrBusy(false); }
   }
   async function geocodeAddress() {
     const address = form.address.trim();
@@ -401,6 +430,10 @@ export default function App() {
           <TouchableOpacity onPress={()=>setForm({...form,isPublic:true})} style={[s.categoryChoice,form.isPublic && s.categoryChoiceActive]}><Text style={[s.categoryChoiceText,form.isPublic && s.categoryChoiceTextActive]}>🌐 Public</Text></TouchableOpacity>
         </View>
         <Text style={s.privacyBody}>{form.isPublic ? "Anyone using Pinpoint can discover this place in Nearby. Your account details are not displayed as part of the place card." : "Only you can see this place. It will not appear in other users’ Nearby results."}</Text>
+        <Text style={s.label}>Import from screenshot</Text>
+        <Text style={s.mapHint}>Choose an Instagram or Facebook reel/post screenshot. Pinpoint reads the visible text on your device.</Text>
+        <Button title={ocrBusy ? "Reading screenshot..." : "▧ Choose screenshot and extract address"} icon="▧" onPress={importScreenshot} disabled={ocrBusy || busy}/>
+        {!!ocrText && <View style={s.ocrPreview}><Text style={s.ocrPreviewTitle}>Text detected — check before saving</Text><Text style={s.ocrPreviewText} numberOfLines={5}>{ocrText}</Text><TouchableOpacity onPress={()=>setOcrText("")}><Text style={s.ocrClear}>Clear detected text</Text></TouchableOpacity></View>}
         <Text style={s.label}>Full address (optional)</Text><Field placeholder="Building, street, area, city, state, PIN code" value={form.address} onChangeText={v=>setForm({...form,address:v})} multiline/>
         <Button title={busy ? "Finding address..." : "Find location from address"} icon="⌖" onPress={geocodeAddress} disabled={busy}/>
         <Text style={s.label}>Select the exact point on the map</Text>
@@ -696,6 +729,7 @@ const s = StyleSheet.create({
  mapOverlay:{position:"absolute",top:12,left:12,right:12,alignItems:"center"},
  mapOverlayText:{backgroundColor:"rgba(32,33,31,0.82)",color:C.white,fontSize:11,fontWeight:"700",paddingHorizontal:13,paddingVertical:8,borderRadius:18},
  mapButtons:{flexDirection:"row",gap:9},
- mapButtonCell:{flex:1}
+ mapButtonCell:{flex:1},
+ ocrPreview:{backgroundColor:"#F8E8DF",borderRadius:13,padding:12,marginTop:10,marginBottom:6},ocrPreviewTitle:{fontSize:12,fontWeight:"800",color:"#A65F45",marginBottom:5},ocrPreviewText:{fontSize:11,lineHeight:16,color:C.ink},ocrClear:{fontSize:11,fontWeight:"800",color:C.coral,marginTop:8}
 
 });
