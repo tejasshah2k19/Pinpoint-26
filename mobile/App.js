@@ -72,6 +72,7 @@ export default function App() {
   const [nearbyCustomKm,setNearbyCustomKm] = useState("");
   const [nearbyLoading,setNearbyLoading] = useState(false);
   const [nearbyCategory,setNearbyCategory] = useState("All");
+  const [nearbyOrigin,setNearbyOrigin] = useState(null);
   const [mapCategory,setMapCategory] = useState("All");
   const [mapRefreshing,setMapRefreshing] = useState(false);
   const mapOverviewRef = useRef(null);
@@ -160,6 +161,16 @@ export default function App() {
     } catch(e) { Alert.alert("Could not refresh map",e.message); }
     finally { setMapRefreshing(false); }
   }
+  function distanceFromNearbyOrigin(item) {
+    const coords=item.coordinates && item.coordinates.coordinates;
+    if(!nearbyOrigin || !Array.isArray(coords) || coords.length!==2) return null;
+    const lat=Number(coords[1]), lon=Number(coords[0]);
+    if(!Number.isFinite(lat)||!Number.isFinite(lon)) return null;
+    const toRad=value=>value*Math.PI/180;
+    const dLat=toRad(lat-nearbyOrigin.latitude), dLon=toRad(lon-nearbyOrigin.longitude);
+    const a=Math.sin(dLat/2)**2+Math.cos(toRad(nearbyOrigin.latitude))*Math.cos(toRad(lat))*Math.sin(dLon/2)**2;
+    return 6371*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
   async function loadNearby(distance = nearbyRadius) {
     setNearbyLoading(true);
     try {
@@ -167,6 +178,7 @@ export default function App() {
       if(permission.status !== "granted") { Alert.alert("Location permission","Allow location access to find places near you."); return; }
       const current = await Location.getCurrentPositionAsync({accuracy:Location.Accuracy.Balanced});
       const result = await api.getNearbyLocations(token,current.coords.latitude,current.coords.longitude,distance);
+      setNearbyOrigin({latitude:current.coords.latitude,longitude:current.coords.longitude});
       setNearbyLocations(result.locations || []);
     } catch(e) { Alert.alert("Nearby places unavailable",e.message); }
     finally { setNearbyLoading(false); }
@@ -525,6 +537,7 @@ export default function App() {
           <View style={{flex:1}}>
             <Text style={s.nearbyPlaceTitle}>{item.title || "Saved place"}</Text>
             <Text style={s.nearbyPlaceCategory}>{item.category || "Other"}</Text>
+            <Text style={s.nearbyDistance}>📍 {distanceFromNearbyOrigin(item) === null ? "Distance unavailable" : distanceFromNearbyOrigin(item).toFixed(2)+" km away"}</Text>
             {!!item.address && <Text style={s.nearbyPlaceAddress}>{item.address}</Text>}
             <Text style={s.nearbyPlaceVisibility}>{item.isPublic ? "PUBLIC COMMUNITY PLACE" : "YOUR PRIVATE PLACE"}</Text>
           </View>
@@ -637,6 +650,7 @@ const s = StyleSheet.create({
  nearbyPlaceCard:{backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:15,padding:15,marginBottom:10,flexDirection:"row"},
  nearbyPlaceTitle:{fontSize:15,fontWeight:"800",color:C.ink,marginBottom:4},
  nearbyPlaceCategory:{fontSize:12,color:C.coral,fontWeight:"700",marginBottom:5},
+ nearbyDistance:{fontSize:12,color:C.ink,fontWeight:"800",marginBottom:6},
  nearbyPlaceAddress:{fontSize:12,color:C.muted,lineHeight:17},
  nearbyPlaceVisibility:{fontSize:9,color:"#5A8066",fontWeight:"800",letterSpacing:.5,marginTop:7},
  customRadiusRow:{flexDirection:"row",alignItems:"center",gap:8,marginBottom:3},
