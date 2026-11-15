@@ -448,13 +448,14 @@ async function renderLocations() {
 async function renderCategories() {
   const result = await api("/admin/categories");
   const categories = result.data || [];
+  const iconOptions = ["◇","⌖","🍽️","☕","🏛️","🏞️","🌳","🏖️","🛍️","🛒","✈️","🚗","🏨","🏕️","🏥","🎓","🏢","🏠","📍","⭐","🎯","🎭","⛩️","🕌","⛪"];
   content.innerHTML =
-    '<div class="section-intro"><div><h2>Categories</h2><p>Review categories created by accounts and add a category under the admin account.</p></div><span class="count-pill">' + categories.length + ' categories</span></div>' +
-    '<div class="panel form-panel"><h3>Create a category</h3><form id="categoryForm" class="inline-form"><label>Category name<input name="name" required maxlength="50" placeholder="e.g. Heritage"></label><label>Color (optional)<input name="color" maxlength="20" placeholder="#D97855"></label><label>Icon (optional)<input name="icon" maxlength="40" placeholder="⌖"></label><button class="btn primary" type="submit">Add category</button></form></div>' +
+    '<div class="section-intro"><div><h2>Categories</h2><p>Review categories created by accounts and add or edit a category under the admin account.</p></div><span class="count-pill">' + categories.length + ' categories</span></div>' +
+    '<div class="panel form-panel"><h3 id="categoryFormHeading">Create a category</h3><form id="categoryForm" class="category-editor-form"><input type="hidden" name="categoryId" value=""><label>Category name<input name="name" required maxlength="50" placeholder="e.g. Heritage"></label><label>Choose category colour <span class="category-color-control"><input name="color" type="color" value="#D97855" aria-label="Choose category colour"><output id="categoryColorValue">#D97855</output></span></label><fieldset class="category-icon-picker"><legend>Choose an icon</legend><div class="category-icon-options">' + iconOptions.map(function (icon) { return '<button type="button" class="category-icon-option' + (icon === "◇" ? " selected" : "") + '" data-action="choose-category-icon" data-icon="' + escapeHtml(icon) + '" aria-label="Choose icon ' + escapeHtml(icon) + '">' + icon + '</button>'; }).join("") + '</div><input type="hidden" name="icon" value="◇"></fieldset><div class="category-editor-actions"><button class="btn primary" type="submit" id="categorySubmitButton">Add category</button><button class="btn secondary hidden" type="button" data-action="cancel-category-edit" id="categoryCancelButton">Cancel</button></div></form></div>' +
     '<div class="table-wrap"><table><thead><tr><th>NAME</th><th>OWNER</th><th>CREATED</th><th>ACTION</th></tr></thead><tbody>' +
     (categories.length ? categories.map(function (c) {
       const owner = c.user && (c.user.name || c.user.email) || "Unknown";
-      return '<tr><td><b>' + escapeHtml(c.icon || "◇") + ' &nbsp;' + escapeHtml(c.name) + '</b><small>' + escapeHtml(c.color || "Default color") + '</small></td><td>' + escapeHtml(owner) + '</td><td>' + dateText(c.createdAt) + '</td><td class="actions"><button class="text-action" data-action="edit-category" data-id="' + escapeHtml(c._id) + '" data-name="' + escapeHtml(c.name) + '">Rename</button><button class="text-action danger-text" data-action="delete-category" data-id="' + escapeHtml(c._id) + '">Delete</button></td></tr>';
+      return '<tr><td><b><span class="category-table-icon" style="background:' + escapeHtml(/^#[0-9a-f]{6}$/i.test(c.color || "") ? c.color : "#D97855") + '">' + escapeHtml(c.icon || "◇") + '</span> ' + escapeHtml(c.name) + '</b><small>' + escapeHtml(c.color || "Default color") + '</small></td><td>' + escapeHtml(owner) + '</td><td>' + dateText(c.createdAt) + '</td><td class="actions"><button class="text-action" data-action="edit-category" data-id="' + escapeHtml(c._id) + '" data-name="' + escapeHtml(c.name) + '" data-color="' + escapeHtml(/^#[0-9a-f]{6}$/i.test(c.color || "") ? c.color : "#D97855") + '" data-icon="' + escapeHtml(c.icon || "◇") + '">Edit</button><button class="text-action danger-text" data-action="delete-category" data-id="' + escapeHtml(c._id) + '">Delete</button></td></tr>';
     }).join("") : '<tr><td colspan="4" class="empty-cell">No categories found.</td></tr>') +
     '</tbody></table></div>';
 }
@@ -590,12 +591,27 @@ content.addEventListener("click", async function (event) {
       await renderLocations();
     }
     if (button.dataset.action === "edit-category") {
-      const name = window.prompt("Category name", button.dataset.name);
-      if (name === null) return;
-      await api("/admin/categories/" + id, { method: "PUT", body: JSON.stringify({ name: name }) });
-      showNotice("Category updated.");
-      await renderCategories();
+      const form = document.getElementById("categoryForm");
+      form.elements.categoryId.value = id;
+      form.elements.name.value = button.dataset.name || "";
+      form.elements.color.value = button.dataset.color || "#D97855";
+      form.elements.icon.value = button.dataset.icon || "◇";
+      document.getElementById("categoryColorValue").textContent = form.elements.color.value.toUpperCase();
+      document.getElementById("categoryFormHeading").textContent = "Edit category";
+      document.getElementById("categorySubmitButton").textContent = "Save changes";
+      document.getElementById("categoryCancelButton").classList.remove("hidden");
+      content.querySelectorAll(".category-icon-option").forEach(function (option) { option.classList.toggle("selected", option.dataset.icon === form.elements.icon.value); });
+      form.scrollIntoView({ behavior: "smooth", block: "center" });
+      form.elements.name.focus();
+      return;
     }
+    if (button.dataset.action === "choose-category-icon") {
+      const form = document.getElementById("categoryForm");
+      form.elements.icon.value = button.dataset.icon;
+      content.querySelectorAll(".category-icon-option").forEach(function (option) { option.classList.toggle("selected", option === button); });
+      return;
+    }
+    if (button.dataset.action === "cancel-category-edit") return renderCategories();
     if (button.dataset.action === "delete-category") {
       if (!window.confirm("Delete this category?")) return;
       await api("/admin/categories/" + id, { method: "DELETE" });
@@ -615,6 +631,12 @@ content.addEventListener("click", async function (event) {
       await renderOffers();
     }
   } catch (err) { showNotice(err.message, true); }
+});
+content.addEventListener("input", function (event) {
+  if (event.target && event.target.name === "color" && event.target.form && event.target.form.id === "categoryForm") {
+    const output = document.getElementById("categoryColorValue");
+    if (output) output.textContent = event.target.value.toUpperCase();
+  }
 });
 content.addEventListener("input", function (event) {
   if (event.target && event.target.id === "placeSearchInput") {
@@ -677,10 +699,15 @@ content.addEventListener("submit", async function (event) {
       await renderLocations();
     }
     if (form.id === "categoryForm") {
-      const categoryResult = await api("/admin/categories", { method: "POST", body: JSON.stringify({
-        name: data.get("name"), color: data.get("color"), icon: data.get("icon")
-      }) });
-      showNotice(categoryResult.alreadyExists ? "That category already exists in the shared catalogue." : "Category added to the shared catalogue.");
+      const categoryId = data.get("categoryId");
+      const payload = { name: data.get("name"), color: data.get("color"), icon: data.get("icon") };
+      if (categoryId) {
+        await api("/admin/categories/" + encodeURIComponent(categoryId), { method: "PUT", body: JSON.stringify(payload) });
+        showNotice("Category updated.");
+      } else {
+        const categoryResult = await api("/admin/categories", { method: "POST", body: JSON.stringify(payload) });
+        showNotice(categoryResult.alreadyExists ? "That category already exists in the shared catalogue." : "Category added to the shared catalogue.");
+      }
       await renderCategories();
     }
     if (form.id === "offerForm") {
