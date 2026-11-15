@@ -28,5 +28,6 @@ export const api = {
   createLocation: (token, details) => request("/locations", { method: "POST", token, body: details }),
   getLocation: (token, id) => request(`/locations/${id}`, { token }),
   updateLocation: (token, id, details) => request(`/locations/${id}`, { method: "PUT", token, body: details }),
-  deleteLocation: (token, id) => request(`/locations/${id}`, { method: "DELETE", token })
+  deleteLocation: (token, id) => request(`/locations/${id}`, { method: "DELETE", token }),
+  deleteAccount: (token) => request("/auth/account", { method: "DELETE", token })
 };
