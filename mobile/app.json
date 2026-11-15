@@ -8,7 +8,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Pinpoint uses your location when you choose to save a place."
+        "NSLocationWhenInUseUsageDescription": "Pinpoint uses your location when you choose to save a place.",
+        "NSPhotoLibraryUsageDescription": "Pinpoint uses the screenshot you select to read visible place and address text."
       }
     },
     "android": {
@@ -25,6 +26,12 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Allow Pinpoint to use your location when you choose to save a place."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Pinpoint to read a screenshot you select so it can extract place details."
         }
       ]
     ],
