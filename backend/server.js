@@ -39,8 +39,9 @@ app.use(rateLimit({
   legacyHeaders: false
 }));
 
+// Public PinPoint26 introduction page.
 app.get("/", (req, res) => {
-  res.json({ success: true, message: "Pinpoint API is running", version: "1.0.0" });
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 app.get("/delete-account", (req, res) => {
