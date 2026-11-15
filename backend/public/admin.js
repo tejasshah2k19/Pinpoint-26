@@ -111,7 +111,8 @@ async function renderIndiaMap() {
   });
   const mapCategories = Array.from(new Set(withCoordinates.map(function (item) { return String(item.category || "Other").trim(); }))).sort(function (a, b) { return a.localeCompare(b); });
   const colorForCategory = function (name) {
-    const value = categoryColors.get(String(name).trim().toLowerCase()) || "#d87955";
+    const meta = categoryDetails.get(String(name).trim().toLowerCase()) || {};
+    const value = meta.color || "#d87955";
     return /^#[0-9a-f]{6}$/i.test(value) ? value : "#d87955";
   };
   content.innerHTML =
