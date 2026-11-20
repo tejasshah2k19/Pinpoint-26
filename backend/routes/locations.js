@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const Location = require("../models/Location");
 const User = require("../models/User");
+const Circle = require("../models/Circle");
 const authenticate = require("../middleware/auth");
 
 const router = express.Router();
@@ -10,7 +11,8 @@ router.use(authenticate);
 async function visibleLocationFilter(userId) {
   // Public places are visible only while their owner account is active.
   const activeUserIds = await User.distinct("_id", { isActive: { $ne: false } });
-  return { $or: [{ user: userId }, { isPublic: true, user: { $in: activeUserIds } }] };
+  const circles = await Circle.find({ $or: [{ creator: userId }, { members: { $elemMatch: { user: userId, status: "approved" } } }] }).select("_id");
+  return { $or: [{ user: userId, circle: null }, { isPublic: true, circle: null, user: { $in: activeUserIds } }, { circle: { $in: circles.map(c => c._id) } }] };
 }
 
 function locationInput(body) {
@@ -34,11 +36,14 @@ router.post("/", async (req, res, next) => {
     if (!input.title || !input.coordinates || !Array.isArray(input.coordinates.coordinates)) {
       return res.status(400).json({ success: false, message: "Title, longitude and latitude are required" });
     }
-    const location = await Location.create({
-      ...input,
-      user: req.userId,
-      isPublic: typeof req.body.isPublic === "boolean" ? req.body.isPublic : false
-    });
+    let circleId = null;
+    if (req.body.circle) {
+      if (!mongoose.isValidObjectId(req.body.circle)) return res.status(400).json({ success: false, message: "Invalid circle." });
+      const circle = await Circle.findById(req.body.circle);
+      if (!circle || !(String(circle.creator) === String(req.userId) || circle.members.some(m => String(m.user) === String(req.userId) && m.status === "approved"))) return res.status(403).json({ success: false, message: "You must be an approved member of this circle." });
+      circleId = circle._id;
+    }
+    const location = await Location.create({ ...input, user: req.userId, circle: circleId, isPublic: circleId ? false : (typeof req.body.isPublic === "boolean" ? req.body.isPublic : false) });
     return res.status(201).json({ success: true, location });
   } catch (error) {
     return next(error);
@@ -108,6 +113,15 @@ router.put("/:id", async (req, res, next) => {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, message: "Invalid location ID" });
     const input = locationInput(req.body);
     if (typeof req.body.isPublic === "boolean") input.isPublic = req.body.isPublic;
+    if (req.body.circle !== undefined) {
+      if (req.body.circle === null || req.body.circle === "") input.circle = null;
+      else {
+        if (!mongoose.isValidObjectId(req.body.circle)) return res.status(400).json({ success: false, message: "Invalid circle." });
+        const circle = await Circle.findById(req.body.circle);
+        if (!circle || !(String(circle.creator) === String(req.userId) || circle.members.some(m => String(m.user) === String(req.userId) && m.status === "approved"))) return res.status(403).json({ success: false, message: "You must be an approved member of this circle." });
+        input.circle = circle._id; input.isPublic = false;
+      }
+    }
     const location = await Location.findOneAndUpdate(
       { _id: req.params.id, user: req.userId },
       { $set: input },
