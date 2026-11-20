@@ -166,3 +166,5 @@ button,.nav-item,.text-action,.logout-button{ min-height:40px }
 .category-editor-actions{grid-column:1/-1;display:flex;gap:9px;flex-wrap:wrap}
 .category-table-icon{display:inline-flex;align-items:center;justify-content:center;width:29px;height:29px;border-radius:9px;color:#fff;font-size:16px;vertical-align:middle}
 @media(max-width:700px){.category-editor-form{grid-template-columns:1fr}.category-icon-picker,.category-editor-actions{grid-column:1}.category-icon-option{width:40px;height:40px}}
+
+#adminForgot{display:block;margin:10px auto 0}.login-card form.hidden{display:none}
