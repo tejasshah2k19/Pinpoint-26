@@ -263,13 +263,13 @@ router.post("/reset-password", passwordResetLimiter, async (req, res, next) => {
     if (!/^[a-f0-9]{64}$/i.test(token)) return res.status(400).json({ success: false, message: "This password reset link is invalid or expired. Request a new one." });
     if (password.length < 8 || password.length > 128) return res.status(400).json({ success: false, message: "Password must be between 8 and 128 characters." });
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-    const user = await User.findOne({ passwordResetTokenHash: tokenHash, passwordResetExpires: { $gt: new Date() }, isActive: { $ne: false } }).select("+passwordHash +passwordResetTokenHash +passwordResetExpires");
+    const user = await User.findOne({ passwordResetTokenHash: tokenHash, passwordResetExpires: { $gt: new Date() }, isActive: { $ne: false } }).select("+passwordHash +passwordResetTokenHash +passwordResetExpires +mpinHash +mpinLookup");
     if (!user) return res.status(400).json({ success: false, message: "This password reset link is invalid or expired. Request a new one." });
     user.passwordHash = await bcrypt.hash(password, 12);
     user.passwordResetTokenHash = undefined;
     user.passwordResetExpires = undefined;
-    user.mpinHash = undefined;
-    user.mpinLookup = undefined;
+    user.mpinHash = null;
+    user.mpinLookup = null;
     await user.save();
     return res.json({ success: true, message: "Password updated successfully. You can now sign in with your new password." });
   } catch (error) { return next(error); }
