@@ -20,6 +20,7 @@ async function request(path, { method = "GET", token, body } = {}) {
 export const api = {
   register: (details) => request("/auth/register", { method: "POST", body: details }),
   login: (details) => request("/auth/login", { method: "POST", body: details }),
+  forgotPassword: (email) => request("/auth/forgot-password", { method: "POST", body: { email } }),
   me: (token) => request("/auth/me", { token }),
   getLocations: (token) => request("/locations", { token }),
   getCategories: (token) => request("/categories", { token }),
