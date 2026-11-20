@@ -82,6 +82,7 @@ export default function App() {
   const [tab,setTab] = useState("Home");
   const [locations,setLocations] = useState([]);
   const [circles,setCircles] = useState([]);
+  const [circleInvitations,setCircleInvitations] = useState([]);
   const [circleName,setCircleName] = useState("");
   const [circleDescription,setCircleDescription] = useState("");
   const [circleInviteCode,setCircleInviteCode] = useState("");
@@ -128,7 +129,7 @@ export default function App() {
     } catch(e) { Alert.alert("Could not load categories",e.message); }
     finally { setCategoryLoading(false); }
   }
-  async function loadCircles(t) { const active=t||token; if(!active)return; try { const result=await api.getCircles(active); setCircles(result.circles||[]); } catch(e) { Alert.alert("Could not load circles",e.message); } }
+  async function loadCircles(t) { const active=t||token; if(!active)return; try { const [result,invites]=await Promise.all([api.getCircles(active),api.getCircleInvitations(active)]); setCircles(result.circles||[]); setCircleInvitations(invites.invitations||[]); } catch(e) { Alert.alert("Could not load circles",e.message); } }
   async function loadLocations(t) {
     const active = t || token;
     if (!active) return;
@@ -521,6 +522,9 @@ export default function App() {
       <Text style={s.placesTitle}>Circles</Text><Text style={s.placesSub}>Share selected places with approved members only.</Text>
       <View style={s.circlePanel}><Text style={s.nearbySectionTitle}>Create a circle</Text><Field placeholder="Circle name" value={circleName} onChangeText={setCircleName}/><Field placeholder="Description (optional)" value={circleDescription} onChangeText={setCircleDescription}/><Button title="＋ Create circle" onPress={createCircle}/></View>
       <View style={s.circlePanel}><Text style={s.nearbySectionTitle}>Join a circle</Text><Field placeholder="Invite code" value={circleInviteCode} onChangeText={setCircleInviteCode}/><Button title="Request to join" onPress={joinCircle}/></View>
+      <Text style={s.nearbySectionTitle}>Invitations</Text>
+      {circleInvitations.map(inv=><View key={inv._id} style={s.circlePanel}><Text style={s.nearbySectionTitle}>{inv.name}</Text><Text style={s.circleMeta}>Invited by {inv.creator?.name||inv.creator?.email||"a Pinpoint user"}</Text><View style={{flexDirection:"row",gap:8}}><View style={{flex:1}}><Button title="Accept" onPress={()=>respondCircleInvitation(inv._id,"accept")}/></View><View style={{flex:1}}><Button title="Reject" onPress={()=>respondCircleInvitation(inv._id,"reject")}/></View></View></View>)}
+      {circleInvitations.length===0 && <Text style={s.reminderHint}>No pending invitations.</Text>}
       <Text style={s.nearbySectionTitle}>Your circles</Text>
       {circles.map(circle=><View key={circle._id} style={s.circlePanel}><Text style={s.nearbySectionTitle}>{circle.name}</Text><Text style={s.notes}>{circle.description||"Private group"}</Text><Text style={s.circleMeta}>{circle.isCreator?"Creator":"Member"} · {circle.members.length} approved members · {circle.myStatus}</Text>
         {circle.isCreator && <><Text style={s.circleCode}>Invite code: {circle.inviteCode}</Text><Field placeholder="Existing Pinpoint user's email" value={circleInviteEmail} onChangeText={setCircleInviteEmail} keyboardType="email-address"/><Button title="Invite user" onPress={()=>inviteToCircle(circle)}/><Button title="Review join requests" onPress={()=>reviewCircle(circle)}/></>}
