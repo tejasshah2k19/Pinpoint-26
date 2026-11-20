@@ -10,7 +10,9 @@ const userSchema = new mongoose.Schema({
   mpinLockUntil: { type: Date, default: null, select: false },
   role: { type: String, enum: ["user", "admin"], default: "user", index: true },
   isActive: { type: Boolean, default: true, index: true },
-  accountDeactivatedAt: { type: Date, default: null }
+  accountDeactivatedAt: { type: Date, default: null },
+  passwordResetTokenHash: { type: String, default: null, select: false },
+  passwordResetExpires: { type: Date, default: null, select: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model("User", userSchema);
