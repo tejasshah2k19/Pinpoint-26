@@ -75,6 +75,12 @@ document.getElementById("loginForm").addEventListener("submit", async function (
     button.textContent = "Sign in to admin";
   }
 });
+const adminLoginForm=document.getElementById("loginForm"),adminForgotForm=document.getElementById("adminForgotForm"),adminResetForm=document.getElementById("adminResetForm");
+document.getElementById("adminForgot").addEventListener("click",function(){adminLoginForm.classList.add("hidden");adminForgotForm.classList.remove("hidden");document.getElementById("adminForgotEmail").value=document.getElementById("loginEmail").value.trim()});
+document.getElementById("backAdminLogin").addEventListener("click",function(){adminForgotForm.classList.add("hidden");adminLoginForm.classList.remove("hidden")});
+adminForgotForm.addEventListener("submit",async function(e){e.preventDefault();const m=document.getElementById("adminForgotMessage");m.textContent="Sending…";try{const response=await fetch(API+"/auth/forgot-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:document.getElementById("adminForgotEmail").value.trim()})});const d=await response.json();if(!response.ok)throw Error(d.message||"Request failed");m.textContent=d.message}catch(err){m.textContent=err.message}});
+adminResetForm.addEventListener("submit",async function(e){e.preventDefault();const m=document.getElementById("adminResetMessage"),password=document.getElementById("adminNewPassword").value;if(password!==document.getElementById("adminConfirmPassword").value){m.textContent="Passwords do not match.";return}m.textContent="Updating password…";try{const response=await fetch(API+"/auth/reset-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:new URLSearchParams(location.search).get("resetToken"),password})});const d=await response.json();if(!response.ok)throw Error(d.message||"Request failed");m.textContent=d.message;if(d.success){history.replaceState({},document.title,location.pathname);adminResetForm.classList.add("hidden");adminLoginForm.classList.remove("hidden")}}catch(err){m.textContent=err.message}});
+const adminResetToken=new URLSearchParams(location.search).get("resetToken");if(adminResetToken){adminLoginForm.classList.add("hidden");adminResetForm.classList.remove("hidden")}
 document.getElementById("logoutButton").addEventListener("click", signOut);
 document.getElementById("navigation").addEventListener("click", function (event) {
   const button = event.target.closest("[data-page]");
