@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Linking, Platform,
+  ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Linking, Platform, Share,
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput,
   TouchableOpacity, View
 } from "react-native";
@@ -34,6 +34,14 @@ function TabButton(p) {
 function PlaceCard(p) {
   const coords = p.item.coordinates && p.item.coordinates.coordinates || [];
   const lat = Number(coords[1]), lng = Number(coords[0]);
+  async function sharePlace() {
+    const query = Number.isFinite(lat) && Number.isFinite(lng) ? `${lat},${lng}` : p.item.address;
+    if (!query) return Alert.alert("Location unavailable","This place has no coordinates or address yet.");
+    const mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+    const message = [p.item.title || "Pinpoint location", p.item.address || "", Number.isFinite(lat) && Number.isFinite(lng) ? `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}` : "", mapLink].filter(Boolean).join("\n");
+    try { await Share.share({message,title:p.item.title || "Share Pinpoint location"}); }
+    catch(e) { Alert.alert("Share failed","Please try again."); }
+  }
   async function openInMaps() {
     const query = Number.isFinite(lat) && Number.isFinite(lng)
       ? `${lat},${lng}`
@@ -55,6 +63,7 @@ function PlaceCard(p) {
     </View>
     <View style={s.actions}>
       <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open place in Google Maps" onPress={openInMaps} style={s.action}><Text style={s.mapAction}>⌖</Text></TouchableOpacity>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share location" onPress={sharePlace} style={s.action}><Text style={s.mapAction}>↗</Text></TouchableOpacity>
       {p.showActions !== false && <><TouchableOpacity onPress={() => p.onEdit(p.item)} style={s.action}><Text style={s.edit}>↗</Text></TouchableOpacity>
       <TouchableOpacity onPress={() => p.onDelete(p.item._id)} style={s.action}><Text style={s.delete}>×</Text></TouchableOpacity></>}
     </View>
