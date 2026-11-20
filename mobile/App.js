@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Linking, Platform, Share,
+  ActivityIndicator, Alert, DeviceEventEmitter, FlatList, KeyboardAvoidingView, Linking, Platform, Share,
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput,
   TouchableOpacity, View
 } from "react-native";
@@ -73,6 +73,7 @@ function PlaceCard(p) {
 export default function App() {
   const [token,setToken] = useState("");
   const [sessionChecking,setSessionChecking] = useState(true);
+  const [apiRequestLoading,setApiRequestLoading] = useState(false);
   const [user,setUser] = useState(null);
   const [authMode,setAuthMode] = useState("login");
   const [forgotMode,setForgotMode] = useState(false);
@@ -163,6 +164,7 @@ export default function App() {
     return () => { mounted = false; };
   }, []);
   useEffect(() => { if(token) { loadLocations(token); loadCategories(token); loadCircles(token); } },[token]);
+  useEffect(() => { const subscription=DeviceEventEmitter.addListener("pinpoint-api-loading",setApiRequestLoading); return () => subscription.remove(); },[]);
 
   async function submitAuth() {
     if(!auth.email.trim() || !auth.password) return Alert.alert("Missing details","Enter your email and password.");
@@ -672,11 +674,13 @@ export default function App() {
       <TabButton icon="◎" label="Nearby" active={tab==="NearbyPlaces"} onPress={()=>setTab("NearbyPlaces")}/>
       <TabButton icon="♙" label="Profile" active={tab==="Profile"} onPress={()=>setTab("Profile")}/>
     </View>
+    {apiRequestLoading && <View style={s.apiLoadingOverlay} pointerEvents="auto"><View style={s.apiLoadingCard}><ActivityIndicator size="large" color={C.coral}/><Text style={s.apiLoadingTitle}>Processing…</Text><Text style={s.apiLoadingSub}>Please wait while Pinpoint responds.</Text></View></View>}
   </SafeAreaView>;
 }
 
 const s = StyleSheet.create({
  safe:{flex:1,backgroundColor:C.paper,paddingTop:Platform.OS==="android"?StatusBar.currentHeight:0},
+ apiLoadingOverlay:{...StyleSheet.absoluteFillObject,zIndex:9999,elevation:9999,backgroundColor:"rgba(32,33,31,0.28)",alignItems:"center",justifyContent:"center",padding:20},apiLoadingCard:{minWidth:210,backgroundColor:C.white,borderRadius:18,borderWidth:1,borderColor:C.line,padding:24,alignItems:"center",shadowColor:"#000",shadowOpacity:0.15,shadowRadius:16,shadowOffset:{width:0,height:6}},apiLoadingTitle:{fontSize:14,fontWeight:"800",color:C.ink,marginTop:12},apiLoadingSub:{fontSize:11,color:C.muted,marginTop:5,textAlign:"center"},
  authScreen:{flex:1},authContent:{flexGrow:1,justifyContent:"center",paddingHorizontal:27,paddingVertical:36},
  brandMark:{width:54,height:54,borderRadius:17,backgroundColor:C.coral,alignItems:"center",justifyContent:"center",marginBottom:18},
  brandMarkText:{color:C.white,fontSize:30,fontWeight:"800",transform:[{rotate:"-15deg"}]},
