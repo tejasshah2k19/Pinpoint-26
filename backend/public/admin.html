@@ -24,7 +24,7 @@
         <label>Email address<input id="loginEmail" type="email" autocomplete="username" required placeholder="admin@example.com"></label>
         <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Your password"></label>
         <button class="btn primary full" type="submit">Sign in to admin</button>
-        <p id="loginError" class="error" role="alert"></p>
+        <p id="loginError" class="error" role="alert"></p><button type="button" id="adminForgot" class="text-action">Forgot password?</button></form><form id="adminResetForm" class="hidden"><label>New password<input id="adminNewPassword" type="password" minlength="8" required autocomplete="new-password"></label><label>Confirm new password<input id="adminConfirmPassword" type="password" minlength="8" required autocomplete="new-password"></label><button class="btn primary full" type="submit">Reset password</button><p id="adminResetMessage" class="error" role="alert"></p></form><form id="adminForgotForm" class="hidden"><label>Administrator email<input id="adminForgotEmail" type="email" required autocomplete="email"></label><button class="btn primary full" type="submit">Send reset link</button><p id="adminForgotMessage" class="error" role="alert"></p><button type="button" id="backAdminLogin" class="text-action">Back to sign in</button></form><p class="footnote">
       </form>
       <p class="footnote">Administrator permissions are verified by the Pinpoint server.</p>
     </section>
