@@ -1,20 +1,29 @@
 import { API_BASE_URL } from "./config";
+import { DeviceEventEmitter } from "react-native";
+
+let activeRequests = 0;
+function notifyRequestState(active) {
+  activeRequests = Math.max(0, activeRequests + (active ? 1 : -1));
+  DeviceEventEmitter.emit("pinpoint-api-loading", activeRequests > 0);
+}
 
 async function request(path, { method = "GET", token, body } = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    },
-    ...(body ? { body: JSON.stringify(body) } : {})
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.message || `Request failed (${response.status})`);
+  notifyRequestState(true);
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      ...(body ? { body: JSON.stringify(body) } : {})
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || `Request failed (${response.status})`);
+    return data;
+  } finally {
+    notifyRequestState(false);
   }
-  return data;
 }
 
 export const api = {
