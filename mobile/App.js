@@ -66,6 +66,9 @@ export default function App() {
   const [sessionChecking,setSessionChecking] = useState(true);
   const [user,setUser] = useState(null);
   const [authMode,setAuthMode] = useState("login");
+  const [forgotMode,setForgotMode] = useState(false);
+  const [forgotBusy,setForgotBusy] = useState(false);
+  const [forgotMessage,setForgotMessage] = useState("");
   const [auth,setAuth] = useState({name:"",email:"",password:""});
   const [tab,setTab] = useState("Home");
   const [locations,setLocations] = useState([]);
@@ -155,6 +158,13 @@ export default function App() {
       setToken(result.token); setUser(result.user); setTab("Home");
     } catch(e) { Alert.alert("Authentication failed",e.message); }
     finally { setBusy(false); }
+  }
+  async function requestPasswordReset() {
+    if(!auth.email.trim()) return Alert.alert("Email required","Enter the email address linked to your Pinpoint account.");
+    setForgotBusy(true); setForgotMessage("");
+    try { const result=await api.forgotPassword(auth.email.trim()); setForgotMessage(result.message); }
+    catch(e) { setForgotMessage(e.message); }
+    finally { setForgotBusy(false); }
   }
   async function refreshMapLocations() {
     setMapRefreshing(true);
@@ -356,12 +366,20 @@ export default function App() {
         <Text style={s.authTitle}>Your places,{"\n"}remembered.</Text>
         <Text style={s.authSub}>Capture the spots worth coming back to, with exact GPS coordinates.</Text>
         <>
-          {authMode === "register" && <View><Text style={s.label}>Your name</Text><Field placeholder="Your name" value={auth.name} onChangeText={v=>setAuth({...auth,name:v})}/></View>}
-          <Text style={s.label}>Email address</Text>
-          <Field placeholder="you@example.com" value={auth.email} onChangeText={v=>setAuth({...auth,email:v})} keyboardType="email-address"/>
-          <Text style={s.label}>Password</Text>
-          <Field placeholder="At least 8 characters" value={auth.password} onChangeText={v=>setAuth({...auth,password:v})} secureTextEntry/>
-          <Button title={busy ? "Please wait..." : authMode === "login" ? "Sign in" : "Create account"} onPress={submitAuth} disabled={busy}/>
+          {!forgotMode ? <>
+            {authMode === "register" && <View><Text style={s.label}>Your name</Text><Field placeholder="Your name" value={auth.name} onChangeText={v=>setAuth({...auth,name:v})}/></View>}
+                      <Text style={s.label}>Email address</Text>
+                      <Field placeholder="you@example.com" value={auth.email} onChangeText={v=>setAuth({...auth,email:v})} keyboardType="email-address"/>
+                      <Text style={s.label}>Password</Text>
+                      <Field placeholder="At least 8 characters" value={auth.password} onChangeText={v=>setAuth({...auth,password:v})} secureTextEntry/>
+                      <Button title={busy ? "Please wait..." : authMode === "login" ? "Sign in" : "Create account"} onPress={submitAuth} disabled={busy}/>
+            {authMode === "login" && <TouchableOpacity style={s.authSwitch} onPress={()=>{setForgotMode(true);setForgotMessage("");}}><Text style={s.authSwitchText}>Forgot password?</Text></TouchableOpacity>}
+          </> : <>
+            <Text style={s.label}>Email address</Text><Field placeholder="you@example.com" value={auth.email} onChangeText={v=>setAuth({...auth,email:v})} keyboardType="email-address"/>
+            <Button title={forgotBusy ? "Sending..." : "Send reset link"} onPress={requestPasswordReset} disabled={forgotBusy}/>
+            {!!forgotMessage && <Text style={s.privacy}>{forgotMessage}</Text>}
+            <TouchableOpacity style={s.authSwitch} onPress={()=>setForgotMode(false)}><Text style={s.authSwitchText}>Back to sign in</Text></TouchableOpacity>
+          </>}
         </>
         <TouchableOpacity style={s.authSwitch} onPress={()=>setAuthMode(authMode === "login" ? "register" : "login")}>
           <Text style={s.authSwitchText}>{authMode === "login" ? "New to Pinpoint? Create an account" : "Already have an account? Sign in"}</Text>
