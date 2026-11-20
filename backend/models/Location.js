@@ -22,7 +22,8 @@ const locationSchema = new mongoose.Schema({
   contact: { type: String, trim: true, maxlength: 100 },
   website: { type: String, trim: true, maxlength: 300 },
   tags: [{ type: String, trim: true, maxlength: 30 }],
-  isPublic: { type: Boolean, default: false }
+  isPublic: { type: Boolean, default: false },
+  circle: { type: mongoose.Schema.Types.ObjectId, ref: "Circle", default: null, index: true }
 }, { timestamps: true });
 
 locationSchema.index({ coordinates: "2dsphere" });
