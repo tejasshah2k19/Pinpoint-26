@@ -218,6 +218,63 @@ router.post("/login", passwordLoginIpLimiter, passwordLoginAccountLimiter, async
   }
 });
 
+
+// Password reset: generic responses prevent account enumeration. Tokens are random,
+// stored only as SHA-256 hashes, expire after 30 minutes, and are single-use.
+const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, limit: 5, standardHeaders: "draft-7", legacyHeaders: false,
+  message: { success: false, message: "Too many password reset requests. Try again later." }
+});
+router.post("/forgot-password", passwordResetLimiter, async (req, res, next) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const generic = { success: true, message: "If an active Pinpoint account exists for that email, password reset instructions will be sent shortly." };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.json(generic);
+    const user = await User.findOne({ email, isActive: { $ne: false } }).select("+passwordResetTokenHash +passwordResetExpires");
+    if (!user) return res.json(generic);
+    const smtpReady = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && process.env.MAIL_FROM;
+    if (!smtpReady) {
+      console.error("Password reset email is not configured (SMTP_HOST, SMTP_USER, SMTP_PASS, MAIL_FROM).");
+      return res.json(generic);
+    }
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    user.passwordResetTokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    user.passwordResetExpires = new Date(Date.now() + 30 * 60 * 1000);
+    await user.save();
+    const resetUrl = new URL("/app/", process.env.PUBLIC_APP_URL || "https://pinpoint-api-9ief.onrender.com").toString() + "?resetToken=" + rawToken;
+    const nodemailer = require("nodemailer");
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT || 587),
+      secure: String(process.env.SMTP_SECURE || "false") === "true",
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    });
+    await transporter.sendMail({
+      from: process.env.MAIL_FROM, to: user.email, subject: "Reset your Pinpoint password",
+      text: "Hello " + user.name + ",\n\nUse this link to reset your Pinpoint password. It expires in 30 minutes and can only be used once:\n\n" + resetUrl + "\n\nIf you did not request this, ignore this email.",
+      html: "<p>Hello " + String(user.name).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])) + ",</p><p>Use the button below to reset your Pinpoint password. This link expires in 30 minutes and can only be used once.</p><p><a href=\"" + resetUrl + "\" style=\"display:inline-block;padding:12px 18px;background:#d97855;color:white;text-decoration:none;border-radius:8px\">Reset password</a></p><p>If you did not request this, ignore this email.</p>"
+    });
+    return res.json(generic);
+  } catch (error) { return next(error); }
+});
+router.post("/reset-password", passwordResetLimiter, async (req, res, next) => {
+  try {
+    const token = String(req.body.token || "");
+    const password = String(req.body.password || "");
+    if (!/^[a-f0-9]{64}$/i.test(token)) return res.status(400).json({ success: false, message: "This password reset link is invalid or expired. Request a new one." });
+    if (password.length < 8 || password.length > 128) return res.status(400).json({ success: false, message: "Password must be between 8 and 128 characters." });
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await User.findOne({ passwordResetTokenHash: tokenHash, passwordResetExpires: { $gt: new Date() }, isActive: { $ne: false } }).select("+passwordHash +passwordResetTokenHash +passwordResetExpires");
+    if (!user) return res.status(400).json({ success: false, message: "This password reset link is invalid or expired. Request a new one." });
+    user.passwordHash = await bcrypt.hash(password, 12);
+    user.passwordResetTokenHash = undefined;
+    user.passwordResetExpires = undefined;
+    user.mpinHash = undefined;
+    user.mpinLookup = undefined;
+    await user.save();
+    return res.json({ success: true, message: "Password updated successfully. You can now sign in with your new password." });
+  } catch (error) { return next(error); }
+});
+
 router.get("/me", authenticate, async (req, res, next) => {
   try {
     const user = await User.findById(req.userId).select("name email role isActive createdAt +mpinLookup");
