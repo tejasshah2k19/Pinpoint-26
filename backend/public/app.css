@@ -4,3 +4,5 @@
 .install{display:flex;align-items:center;gap:7px;white-space:nowrap}.install span:first-child{font-size:17px;line-height:1}.install-label{font-size:11px}@media(max-width:380px){.install-label{display:none}.install{width:38px;height:38px;justify-content:center;padding:0}}
 
 #forgotPassword{display:block;margin:10px auto 0;font-size:12px}
+
+.share-button{border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:9px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer}
