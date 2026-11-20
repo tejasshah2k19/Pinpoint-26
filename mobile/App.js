@@ -56,7 +56,7 @@ function PlaceCard(p) {
     <View style={s.placeInfo}>
       <Text style={s.placeTitle} numberOfLines={1}>{p.item.title}</Text>
       <Text style={s.placeCategory}>{p.item.category || "Other"}</Text>
-      {p.item.isOwner === false && <Text style={s.communityTag}>PUBLIC COMMUNITY PLACE · VIEW ONLY</Text>}
+      {p.item.circle ? <Text style={s.communityTag}>CIRCLE LOCATION · APPROVED MEMBERS ONLY</Text> : p.item.isOwner === false && <Text style={s.communityTag}>PUBLIC COMMUNITY PLACE · VIEW ONLY</Text>}
       {!!p.item.address && <Text style={s.notes} numberOfLines={2}>{p.item.address}</Text>}
       {!!p.item.notes && <Text style={s.notes} numberOfLines={2}>{p.item.notes}</Text>}
       {Number.isFinite(lat) && Number.isFinite(lng) && <Text style={s.coords}>{lat.toFixed(5)}, {lng.toFixed(5)}</Text>}
