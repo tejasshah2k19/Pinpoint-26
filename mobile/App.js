@@ -81,6 +81,11 @@ export default function App() {
   const [auth,setAuth] = useState({name:"",email:"",password:""});
   const [tab,setTab] = useState("Home");
   const [locations,setLocations] = useState([]);
+  const [circles,setCircles] = useState([]);
+  const [circleName,setCircleName] = useState("");
+  const [circleDescription,setCircleDescription] = useState("");
+  const [circleInviteCode,setCircleInviteCode] = useState("");
+  const [circleInviteEmail,setCircleInviteEmail] = useState("");
   const [nearbyLocations,setNearbyLocations] = useState([]);
   const [nearbyRadius,setNearbyRadius] = useState(5000);
   const [nearbyCustomKm,setNearbyCustomKm] = useState("");
@@ -90,7 +95,7 @@ export default function App() {
   const [mapCategory,setMapCategory] = useState("All");
   const [mapRefreshing,setMapRefreshing] = useState(false);
   const mapOverviewRef = useRef(null);
-  const [form,setForm] = useState({title:"",category:"Food",address:"",notes:"",isPublic:false});
+  const [form,setForm] = useState({title:"",category:"Food",address:"",notes:"",isPublic:false,circle:""});
   const [categories,setCategories] = useState([]);
   const [categoryLoading,setCategoryLoading] = useState(false);
   const [categoryDropdownOpen,setCategoryDropdownOpen] = useState(false);
@@ -123,6 +128,7 @@ export default function App() {
     } catch(e) { Alert.alert("Could not load categories",e.message); }
     finally { setCategoryLoading(false); }
   }
+  async function loadCircles(t) { const active=t||token; if(!active)return; try { const result=await api.getCircles(active); setCircles(result.circles||[]); } catch(e) { Alert.alert("Could not load circles",e.message); } }
   async function loadLocations(t) {
     const active = t || token;
     if (!active) return;
@@ -155,7 +161,7 @@ export default function App() {
     restoreSession();
     return () => { mounted = false; };
   }, []);
-  useEffect(() => { if(token) { loadLocations(token); loadCategories(token); } },[token]);
+  useEffect(() => { if(token) { loadLocations(token); loadCategories(token); loadCircles(token); } },[token]);
 
   async function submitAuth() {
     if(!auth.email.trim() || !auth.password) return Alert.alert("Missing details","Enter your email and password.");
@@ -230,13 +236,13 @@ export default function App() {
   }
   function newPlace() {
     setEditingId(null);
-    setForm({title:"",category:(categories[0] && categories[0].name) || "Food",address:"",notes:"",isPublic:false});
+    setForm({title:"",category:(categories[0] && categories[0].name) || "Food",address:"",notes:"",isPublic:false,circle:""});
     setShowCustomCategory(false); setCustomCategoryName(""); setCategoryDropdownOpen(false);
     setPosition(null); setOcrText(""); setTab("Capture");
   }
   function editPlace(item) {
     const coords = item.coordinates && item.coordinates.coordinates || [];
-    setEditingId(item._id); setForm({title:item.title || "",category:item.category || "Other",address:item.address || "",notes:item.notes || "",isPublic:item.isPublic === true});
+    setEditingId(item._id); setForm({title:item.title || "",category:item.category || "Other",address:item.address || "",notes:item.notes || "",isPublic:item.isPublic === true,circle:item.circle || ""});
     setShowCustomCategory(false); setCustomCategoryName(""); setCategoryDropdownOpen(false);
     const existingPosition = coords.length === 2 ? {latitude:coords[1],longitude:coords[0]} : null;
     setPosition(existingPosition); setOcrText(""); setTab("Capture");
@@ -311,7 +317,7 @@ export default function App() {
     if(!form.title.trim()) return Alert.alert("Add a title","Enter a name for this place.");
     if(!position) return Alert.alert("Choose a location","Use current GPS or find coordinates from the address.");
     setBusy(true);
-    const details = {title:form.title.trim(),category:form.category.trim() || "Other",address:form.address.trim(),notes:form.notes.trim(),isPublic:form.isPublic,coordinates:{type:"Point",coordinates:[position.longitude,position.latitude]}};
+    const details = {title:form.title.trim(),category:form.category.trim() || "Other",address:form.address.trim(),notes:form.notes.trim(),isPublic:form.circle ? false : form.isPublic,circle:form.circle || null,coordinates:{type:"Point",coordinates:[position.longitude,position.latitude]}};
     try {
       if(editingId) await api.updateLocation(token,editingId,details); else await api.createLocation(token,details);
       await loadLocations(token); setForm({title:"",category:(categories[0] && categories[0].name) || "Food",address:"",notes:"",isPublic:false}); setPosition(null); setShowCustomCategory(false); setCategoryDropdownOpen(false); setEditingId(null); setTab("Places");
@@ -458,6 +464,12 @@ export default function App() {
           <TouchableOpacity onPress={()=>setForm({...form,isPublic:true})} style={[s.categoryChoice,form.isPublic && s.categoryChoiceActive]}><Text style={[s.categoryChoiceText,form.isPublic && s.categoryChoiceTextActive]}>🌐 Public</Text></TouchableOpacity>
         </View>
         <Text style={s.privacyBody}>{form.isPublic ? "Anyone using Pinpoint can discover this place in Nearby. Your account details are not displayed as part of the place card." : "Only you can see this place. It will not appear in other users’ Nearby results."}</Text>
+        <Text style={s.label}>Share with a circle (optional)</Text>
+        <View style={s.circleChoices}>
+          <TouchableOpacity style={[s.circleChoice,!form.circle && s.circleChoiceActive]} onPress={()=>setForm({...form,circle:"",isPublic:false})}><Text style={s.circleChoiceText}>Private</Text></TouchableOpacity>
+          {circles.filter(x=>x.myStatus==="approved").map(x=><TouchableOpacity key={x._id} style={[s.circleChoice,form.circle===x._id && s.circleChoiceActive]} onPress={()=>setForm({...form,circle:x._id,isPublic:false})}><Text style={s.circleChoiceText}>{x.name}</Text></TouchableOpacity>)}
+        </View>
+        <Text style={s.mapHint}>Only approved members of the selected circle can see this place.</Text>
         <Text style={s.label}>Import from screenshot</Text>
         <Text style={s.mapHint}>Choose an Instagram or Facebook reel/post screenshot. Pinpoint reads the visible text on your device.</Text>
         <Button title={ocrBusy ? "Reading screenshot..." : "▧ Choose screenshot and extract address"} icon="▧" onPress={importScreenshot} disabled={ocrBusy || busy}/>
@@ -505,6 +517,17 @@ export default function App() {
       </ScrollView>
     </KeyboardAvoidingView>}
 
+    {tab === "Circles" && <ScrollView style={s.screen} contentContainerStyle={{paddingBottom:28}} keyboardShouldPersistTaps="handled">
+      <Text style={s.placesTitle}>Circles</Text><Text style={s.placesSub}>Share selected places with approved members only.</Text>
+      <View style={s.circlePanel}><Text style={s.nearbySectionTitle}>Create a circle</Text><Field placeholder="Circle name" value={circleName} onChangeText={setCircleName}/><Field placeholder="Description (optional)" value={circleDescription} onChangeText={setCircleDescription}/><Button title="＋ Create circle" onPress={createCircle}/></View>
+      <View style={s.circlePanel}><Text style={s.nearbySectionTitle}>Join a circle</Text><Field placeholder="Invite code" value={circleInviteCode} onChangeText={setCircleInviteCode}/><Button title="Request to join" onPress={joinCircle}/></View>
+      <Text style={s.nearbySectionTitle}>Your circles</Text>
+      {circles.map(circle=><View key={circle._id} style={s.circlePanel}><Text style={s.nearbySectionTitle}>{circle.name}</Text><Text style={s.notes}>{circle.description||"Private group"}</Text><Text style={s.circleMeta}>{circle.isCreator?"Creator":"Member"} · {circle.members.length} approved members · {circle.myStatus}</Text>
+        {circle.isCreator && <><Text style={s.circleCode}>Invite code: {circle.inviteCode}</Text><Field placeholder="Existing Pinpoint user's email" value={circleInviteEmail} onChangeText={setCircleInviteEmail} keyboardType="email-address"/><Button title="Invite user" onPress={()=>inviteToCircle(circle)}/><Button title="Review join requests" onPress={()=>reviewCircle(circle)}/></>}
+      </View>)}
+      {circles.length===0 && <Text style={s.reminderHint}>No circles yet. Create one or join with an invite code.</Text>}
+      <Button title="Refresh circles" onPress={()=>loadCircles(token)}/>
+    </ScrollView>}
     {tab === "Nearby" && <View style={s.mapScreen}>
       <View style={s.mapHeader}>
         <View style={{flex:1}}>
@@ -640,6 +663,7 @@ export default function App() {
     <View style={s.tabs}>
       <TabButton icon="⌂" label="Home" active={tab==="Home"} onPress={()=>setTab("Home")}/>
       <TabButton icon="◫" label="Places" active={tab==="Places"} onPress={()=>setTab("Places")}/>
+      <TabButton icon="◉" label="Circles" active={tab==="Circles"} onPress={()=>{setTab("Circles");loadCircles(token);}}/>
       <TabButton icon="⌖" label="Map" active={tab==="Nearby"} onPress={()=>setTab("Nearby")}/>
       <TabButton icon="◎" label="Nearby" active={tab==="NearbyPlaces"} onPress={()=>setTab("NearbyPlaces")}/>
       <TabButton icon="♙" label="Profile" active={tab==="Profile"} onPress={()=>setTab("Profile")}/>
@@ -676,6 +700,7 @@ const s = StyleSheet.create({
  mapLegend:{flexDirection:"row",justifyContent:"space-between",paddingVertical:7},
  mapLegendText:{fontSize:9,color:"#A96C50",fontWeight:"700"},
  mapLegendPublic:{fontSize:9,color:"#5A8066",fontWeight:"700"},
+ circlePanel:{backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:16,padding:14,marginVertical:8},circleMeta:{fontSize:11,color:C.muted,marginVertical:6},circleCode:{fontSize:12,color:C.coral,fontWeight:"800",letterSpacing:1,marginVertical:7},circleChoices:{flexDirection:"row",flexWrap:"wrap",gap:8,marginVertical:8},circleChoice:{paddingHorizontal:12,paddingVertical:9,borderRadius:16,backgroundColor:"#EEEDE6"},circleChoiceActive:{backgroundColor:C.coral},circleChoiceText:{fontSize:11,color:C.ink,fontWeight:"700"},
  indiaMapFrame:{flex:1,minHeight:260,borderRadius:17,overflow:"hidden",borderWidth:1,borderColor:C.line,backgroundColor:"#EEEDE6"},
  indiaMap:{flex:1},
  indiaMapMarker:{minWidth:30,height:30,borderRadius:16,borderWidth:2,alignItems:"center",justifyContent:"center",paddingHorizontal:4,elevation:4},
